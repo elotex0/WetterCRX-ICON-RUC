@@ -166,6 +166,12 @@ for filename in sorted(os.listdir(data_dir)):
         if "t2m" not in ds: continue
         data = ds["t2m"].values - 273.15
         cmap, norm = t2m_cmap, t2m_norm
+    elif var_type == "ww":
+        varname = next((vn for vn in ds.data_vars if vn.lower() in ["WW","weather"]), None)
+        if varname is None:
+            print(f"Keine WW in {filename}")
+            continue
+        data = ds[varname].values
     elif var_type == "tp":
         if "tprate" not in ds: continue
         data = ds["tprate"].values
