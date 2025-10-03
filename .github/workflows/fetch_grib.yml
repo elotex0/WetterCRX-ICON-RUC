@@ -116,7 +116,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
         with:
-        token: ${{ secrets.GH_PAT }}
+          token: ${{ secrets.GH_PAT }}
 
       - name: Copy generated PNGs into repo
         run: |
