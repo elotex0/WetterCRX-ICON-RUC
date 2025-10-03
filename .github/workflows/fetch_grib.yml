@@ -1,0 +1,136 @@
+name: Fetch ICON-D2 GRIB2 and Generate PNGs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch_and_generate:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.set_run_date.outputs.run }}
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set RUN and DATE (hourly)
+        id: set_run_date
+        run: |
+          # aktuelle UTC-Zeit
+          HOUR=$(date -u +%H)
+          DATE=$(date -u +%Y-%m-%d)  # ICON-D2 RUC URL Format
+
+          # RUN = letzte volle Stunde (00–23)
+          RUN=$(printf "%02d" $HOUR)
+
+          echo "RUN=$RUN" >> $GITHUB_ENV
+          echo "DATE=$DATE" >> $GITHUB_ENV
+
+          echo "run=$RUN" >> $GITHUB_OUTPUT
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+          echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
+
+      - name: Download t2m GRIB2 files
+        run: |
+          mkdir -p data/t2m
+          cd data/t2m
+          seq 0 14 | xargs -n 1 -P 7 -I{} bash -c '
+            i_padded=$(printf "%03d" {})
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/T_2M/r/${DATE}T${HOUR}:00/s/PT${i_padded}H00M.grib2"
+            wget -O t2m_${i_padded}.grib2.bz2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+            if [ -f "t2m_${i_padded}.grib2.bz2" ]; then
+              bunzip2 -f t2m_${i_padded}.grib2.bz2
+            fi
+          '
+      
+      - name: Download ww GRIB2 files
+        run: |
+          mkdir -p data/ww
+          cd data/ww
+          seq 0 14 | xargs -n 1 -P 7 -I{} bash -c '
+            i_padded=$(printf "%03d" {})
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${DATE}T${HOUR}:00/s/PT${i_padded}H00M.grib2"
+            wget -O ww_${i_padded}.grib2.bz2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+            if [ -f "ww_${i_padded}.grib2.bz2" ]; then
+              bunzip2 -f ww_${i_padded}.grib2.bz2
+            fi
+          '
+      
+      - name: Download tp GRIB2 files
+        run: |
+          mkdir -p data/tp
+          cd data/tp
+          seq 0 14 | xargs -n 1 -P 7 -I{} bash -c '
+            i_padded=$(printf "%03d" {})
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/T_PREC_D/r/${DATE}T${HOUR}:00/s/PT${i_padded}H00M.grib2"
+            wget -O tot_prec_${i_padded}.grib2.bz2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+            if [ -f "tot_prec_${i_padded}.grib2.bz2" ]; then
+              bunzip2 -f tot_prec_${i_padded}.grib2.bz2
+            fi
+          '
+
+      - name: Generate PNGs
+        run: |
+          mkdir -p iconruc/${{ env.RUN }}/t2m
+          mkdir -p iconruc/${{ env.RUN }}/ww
+          mkdir -p iconruc/${{ env.RUN }}/tp
+
+          python scripts/generate_pngs.py data/t2m iconruc/${{ env.RUN }}/t2m t2m
+          python scripts/generate_pngs.py data/ww iconruc/${{ env.RUN }}/ww ww
+          python scripts/generate_pngs.py data/tp iconruc/${{ env.RUN }}/tp tp
+
+      - name: Upload PNGs as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iconruc
+          path: iconruc
+
+
+        # --------- Delete GRIB2 Files ---------
+      - name: Delete GRIB2 files
+        run: rm -rf data/
+
+  deploy_to_repo:
+  runs-on: ubuntu-latest
+  needs: fetch_and_generate
+  steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
+
+    - name: Copy generated PNGs into repo
+      run: |
+        cp -r iconruc/${{ needs.fetch_and_generate.outputs.run }} ./iconruc/
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Commit and push changes
+      run: |
+        git add iconruc/${{ needs.fetch_and_generate.outputs.run }}
+        git commit -m "Add ICON-RUC PNGs for run ${{ needs.fetch_and_generate.outputs.run }}" || echo "No changes to commit"
+        git push origin HEAD:main
+      env:
+        GH_PAT: ${{ secrets.GH_PAT }}
