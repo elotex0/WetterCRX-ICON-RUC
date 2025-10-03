@@ -42,36 +42,6 @@ cities = pd.DataFrame({
 # ------------------------------
 # Farben und Normen
 # ------------------------------
-
-ignore_codes = {4}
-
-# ------------------------------
-# WW-Farben
-# ------------------------------
-ww_colors_base = {
-    0: "#FFFFFF", 1: "#D3D3D3", 2: "#A9A9A9", 3: "#696969",
-    45: "#FFFF00", 48: "#FFD700",
-    56: "#FFA500", 57: "#C06A00",
-    51: "#A3FFA3", 53: "#33FF33", 55: "#006600",
-    61: "#33FF33", 63: "#009900", 65: "#006600",
-    80: "#33FF33", 81: "#009900", 82: "#006600",
-    66: "#FF6347", 67: "#8B0000",
-    71: "#ADD8E6", 73: "#6495ED", 75: "#00008B",
-    85: "#ADD8E6", 86: "#6495ED",
-    77: "#ADD8E6",
-    95: "#FF77FF", 96: "#C71585", 99: "#C71585"
-}
-ww_categories = {
-    "Bewölkung": [0, 1 , 2, 3],
-    "Nebel": [45],
-    "Schneeregen": [56, 57],
-    "Regen": [51, 61, 63, 65],
-    "gefr. Regen": [66, 67],
-    "Schnee": [71, 73, 75],
-    "Gewitter": [95,96],
-}
-
-# Temperatur 2m
 t2m_bounds = list(range(-28, 41, 2))
 t2m_colors = [
     "#C802CB", "#AA00A9", "#8800AA", "#6600AA", "#4400AB",
@@ -85,7 +55,6 @@ t2m_colors = [
 t2m_cmap = ListedColormap(t2m_colors)
 t2m_norm = BoundaryNorm(t2m_bounds, t2m_cmap.N)
 
-# Niederschlag 1h
 prec_bounds = [0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                12, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 125]
 prec_colors = ListedColormap([
@@ -118,32 +87,8 @@ if current_w < needed_w:
     xmax += extra
 extent = [xmin, xmax, ymin, ymax]
 
-
-#------------------------------
-# WW Legende Funktion
-#------------------------------
-
-def add_ww_legend_bottom(fig, ww_categories, ww_colors_base):
-    legend_height = 0.12
-    legend_ax = fig.add_axes([0.05, 0.01, 0.9, legend_height])
-    legend_ax.axis("off")
-    for i, (label, codes) in enumerate(ww_categories.items()):
-        n_colors = len(codes)
-        block_width = 1.0 / len(ww_categories)
-        gap = 0.05 * block_width
-        x0 = i * block_width
-        x1 = (i + 1) * block_width
-        inner_width = x1 - x0 - gap
-        color_width = inner_width / n_colors
-        for j, c in enumerate(codes):
-            color = ww_colors_base.get(c, "#FFFFFF")
-            legend_ax.add_patch(mpatches.Rectangle((x0 + j * color_width, 0.3),
-                                                  color_width, 0.6,
-                                                  facecolor=color, edgecolor='black'))
-        legend_ax.text((x0 + x1)/2, 0.05, label, ha='center', va='bottom', fontsize=10)
-
 # ------------------------------
-# Grid laden (ICON unstrukturiert)
+# ICON Grid laden (einmal!)
 # ------------------------------
 gridfile = "scripts/icon_grid_0047_R19B07_L.nc"
 grid = xr.open_dataset(gridfile)
@@ -166,25 +111,28 @@ for filename in sorted(os.listdir(data_dir)):
         if "t2m" not in ds: continue
         data = ds["t2m"].values - 273.15
         cmap, norm = t2m_cmap, t2m_norm
-    elif var_type == "ww":
-        varname = next((vn for vn in ds.data_vars if vn.lower() in ["WW","weather"]), None)
-        if varname is None:
-            print(f"Keine WW in {filename}")
-            continue
-        data = ds[varname].values
     elif var_type == "tp":
         if "tprate" not in ds: continue
         data = ds["tprate"].values
         data[data<0.1]=np.nan
         cmap, norm = prec_colors, prec_norm
+    elif var_type == "ww":
+        varname = next((vn for vn in ds.data_vars if vn.lower() in ["ww","weather"]), None)
+        if varname is None:
+            print(f"Keine WW in {filename}")
+            continue
+        data = ds[varname].values
+        cmap, norm = None, None
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
 
     if data.ndim==3: data=data[0]
 
+    # --------------------------
+    # Zeiten
+    # --------------------------
     run_time_utc = pd.to_datetime(ds["time"].values) if "time" in ds else None
-
     if "valid_time" in ds:
         valid_time_raw = ds["valid_time"].values
         valid_time_utc = pd.to_datetime(valid_time_raw[0]) if np.ndim(valid_time_raw) > 0 else pd.to_datetime(valid_time_raw)
@@ -207,8 +155,11 @@ for filename in sorted(os.listdir(data_dir)):
     ax.add_feature(cfeature.LAND, facecolor="#676767")
     ax.add_feature(cfeature.OCEAN, facecolor="#676767")
 
-    # Scatter Plot
-    im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+    # Scatter Plot (nur falls cmap vorhanden)
+    if cmap is not None:
+        im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+    else:  # WW-Farben
+        im = ax.scatter(lons, lats, c=data, s=2, transform=ccrs.PlateCarree())
 
     # Bundesländer & Städte
     bundeslaender.boundary.plot(ax=ax, edgecolor="black", linewidth=1)
@@ -222,35 +173,34 @@ for filename in sorted(os.listdir(data_dir)):
     ax.add_feature(cfeature.COASTLINE)
     ax.add_patch(mpatches.Rectangle((0,0),1,1, transform=ax.transAxes, fill=False, color="black", linewidth=2))
 
-    # Legende
-    legend_h_px, legend_bottom_px = 50, 45
-    cbar_ax = fig.add_axes([0.03, legend_bottom_px/FIG_H_PX, 0.94, legend_h_px/FIG_H_PX])
-    cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", extend='neither')
-    cbar.ax.tick_params(colors="black", labelsize=7)
-    cbar.outline.set_edgecolor("black")
-    cbar.ax.set_facecolor("white")
+    # --------------------------
+    # Colorbar (falls relevant)
+    # --------------------------
+    if cmap is not None:
+        legend_h_px, legend_bottom_px = 50, 45
+        cbar_ax = fig.add_axes([0.03, legend_bottom_px/FIG_H_PX, 0.94, legend_h_px/FIG_H_PX])
+        cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", extend='neither')
+        cbar.ax.tick_params(colors="black", labelsize=7)
+        cbar.outline.set_edgecolor("black")
+        cbar.ax.set_facecolor("white")
 
+    # --------------------------
     # Footer
-    footer_ax = fig.add_axes([0.0, (legend_bottom_px + legend_h_px)/FIG_H_PX, 1.0,
-                              (BOTTOM_AREA_PX - legend_h_px - legend_bottom_px)/FIG_H_PX])
+    # --------------------------
+    footer_ax = fig.add_axes([0.0, 0.0, 1.0, BOTTOM_AREA_PX/FIG_H_PX])
     footer_ax.axis("off")
-    footer_texts = {
-        "ww": "Signifikantes Wetter",
-        "t2m": "Temperatur 2m (°C)",
-        "tp": "Niederschlag, 1Std (mm)",
-    }
-
+    footer_texts = {"t2m": "Temperatur 2m (°C)", "tp": "Niederschlag 1h (mm)", "ww": "Signifikantes Wetter"}
     left_text = footer_texts.get(var_type, var_type) + \
-                f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst" \
-                if run_time_utc is not None else \
-                footer_texts.get(var_type, var_type) + "\nICON-RUC (??z), Deutscher Wetterdienst"
-
+                (f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst"
+                 if run_time_utc is not None else "\nICON-RUC (??z), Deutscher Wetterdienst")
     footer_ax.text(0.01, 0.85, left_text, fontsize=12, fontweight="bold", va="top", ha="left")
     footer_ax.text(0.734, 0.92, "Prognose für:", fontsize=12, va="top", ha="left", fontweight="bold")
     footer_ax.text(0.99, 0.68, f"{valid_time_local:%d.%m.%Y %H:%M} Uhr",
                    fontsize=12, va="top", ha="right", fontweight="bold")
 
+    # --------------------------
     # Speichern
+    # --------------------------
     outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.png"
     plt.savefig(os.path.join(output_dir, outname), dpi=100, bbox_inches=None, pad_inches=0)
     plt.close()
