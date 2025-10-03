@@ -167,7 +167,7 @@ for filename in sorted(os.listdir(data_dir)):
         data = ds["t2m"].values - 273.15
         cmap, norm = t2m_cmap, t2m_norm
     elif var_type == "tp":
-        if "tp" not in ds: continue
+        if "tprate" not in ds: continue
         data = ds["tprate"].values
         data[data<0.1]=np.nan
         cmap, norm = prec_colors, prec_norm
