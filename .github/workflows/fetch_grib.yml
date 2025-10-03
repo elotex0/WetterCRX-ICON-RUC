@@ -92,12 +92,6 @@ jobs:
           python scripts/generate_pngs.py data/ww iconruc/${{ env.RUN }}/ww ww
           python scripts/generate_pngs.py data/tp iconruc/${{ env.RUN }}/tp tp
 
-      - name: Upload PNGs as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: iconruc
-          path: iconruc
-
       - name: Delete GRIB2 files
         run: rm -rf data/
 
