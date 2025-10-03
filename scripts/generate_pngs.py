@@ -91,7 +91,7 @@ extent = [xmin, xmax, ymin, ymax]
 # ICON Grid laden (einmal!)
 # ------------------------------
 gridfile = "scripts/icon_grid_0047_R19B07_L.nc"
-grid = xr.open_dataset(gridfile)
+grid = xr.open_dataset(gridfile, engine="netcdf4")
 lats = np.rad2deg(grid["clat"].values)
 lons = np.rad2deg(grid["clon"].values)
 
