@@ -1,7 +1,9 @@
-cfgrib
 xarray
+cfgrib
+netCDF4
+h5netcdf
+numpy
+pandas
 matplotlib
 cartopy
 geopandas
-shapely
-pandas
