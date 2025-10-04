@@ -28,24 +28,22 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Set RUN and DATE (hourly)
+      - name: Set RUN and DATE (fixed)
         id: set_run_date
         run: |
-          # Festes Datum und Stunde
           DATE="2025-10-03"
           RUN="23"
 
           echo "RUN=$RUN" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
 
+          # Job output
           echo "run=$RUN" >> $GITHUB_OUTPUT
           echo "date=$DATE" >> $GITHUB_OUTPUT
-
-          echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
 
       - name: Download t2m GRIB2 files
         run: |
@@ -104,6 +102,9 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_PAT }}
+
+      - name: Debug: list generated PNGs
+        run: ls -l iconruc/
 
       - name: Copy generated PNGs into repo
         run: |
