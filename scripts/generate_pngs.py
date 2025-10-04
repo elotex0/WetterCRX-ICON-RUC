@@ -43,6 +43,30 @@ cities = pd.DataFrame({
 # ------------------------------
 # Farben und Normen
 # ------------------------------
+# ------------------------------
+# WW-Farben
+# ------------------------------
+ww_colors_base = {
+    0: "#FFFFFF", 1: "#D3D3D3", 2: "#A9A9A9", 3: "#696969",
+    45: "#FFFF00", 48: "#FFD700",
+    56: "#FFA500", 57: "#C06A00",
+    51: "#A3FFA3", 53: "#33FF33", 55: "#006600",
+    61: "#33FF33", 63: "#009900", 65: "#006600",
+    80: "#33FF33", 81: "#009900", 82: "#006600",
+    66: "#FF6347", 67: "#8B0000",
+    71: "#ADD8E6", 73: "#6495ED", 75: "#00008B",
+    95: "#FF77FF", 96: "#C71585", 99: "#C71585"
+}
+ww_categories = {
+    "Bewölkung": [0, 1 , 2, 3],
+    "Nebel": [45],
+    "Schneeregen": [56, 57],
+    "Regen": [51, 61, 63, 65],
+    "gefr. Regen": [66, 67],
+    "Schnee": [71, 73, 75],
+    "Gewitter": [95,96],
+}
+
 t2m_bounds = list(range(-28, 41, 2))
 t2m_colors = [
     "#C802CB", "#AA00A9", "#8800AA", "#6600AA", "#4400AB",
@@ -89,6 +113,28 @@ if current_w < needed_w:
 extent = [xmin, xmax, ymin, ymax]
 
 # ------------------------------
+# WW-Legende Funktion
+# ------------------------------
+def add_ww_legend_bottom(fig, ww_categories, ww_colors_base):
+    legend_height = 0.12
+    legend_ax = fig.add_axes([0.05, 0.01, 0.9, legend_height])
+    legend_ax.axis("off")
+    for i, (label, codes) in enumerate(ww_categories.items()):
+        n_colors = len(codes)
+        block_width = 1.0 / len(ww_categories)
+        gap = 0.05 * block_width
+        x0 = i * block_width
+        x1 = (i + 1) * block_width
+        inner_width = x1 - x0 - gap
+        color_width = inner_width / n_colors
+        for j, c in enumerate(codes):
+            color = ww_colors_base.get(c, "#FFFFFF")
+            legend_ax.add_patch(mpatches.Rectangle((x0 + j * color_width, 0.3),
+                                                  color_width, 0.6,
+                                                  facecolor=color, edgecolor='black'))
+        legend_ax.text((x0 + x1)/2, 0.05, label, ha='center', va='bottom', fontsize=10)
+
+# ------------------------------
 # ICON Grid laden (einmal!)
 # ------------------------------
 gridfile = "scripts/icon_grid_0047_R19B07_L.nc"
@@ -121,7 +167,7 @@ for filename in sorted(os.listdir(data_dir)):
         data[data<0.1]=np.nan
         cmap, norm = prec_colors, prec_norm
     elif var_type == "ww":
-        varname = next((vn for vn in ds.data_vars if vn.lower() in ["WW","weather"]), None)
+        varname = next((vn for vn in ds.data_vars if vn in ["WW","weather"]), None)
         if varname is None:
             print(f"Keine WW in {filename}")
             continue
@@ -161,8 +207,19 @@ for filename in sorted(os.listdir(data_dir)):
     # Scatter Plot (nur falls cmap vorhanden)
     if cmap is not None:
         im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
-    else:  # WW-Farben
-        im = ax.scatter(lons, lats, c=data, s=2, transform=ccrs.PlateCarree())
+    else:
+    # WW-Farben
+        valid_mask = np.isfinite(data)
+        codes = np.unique(data[valid_mask]).astype(int)
+        codes = [c for c in codes if c in ww_colors_base]
+        codes.sort()
+        cmap = ListedColormap([ww_colors_base[c] for c in codes])
+        code2idx = {c: i for i, c in enumerate(codes)}
+        idx_data = np.full_like(data, fill_value=np.nan, dtype=float)
+        for c, i in code2idx.items():
+            idx_data[data == c] = i
+        im = ax.scatter(lons, lats, c=idx_data, s=2, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
+
 
     # Bundesländer & Städte
     bundeslaender.boundary.plot(ax=ax, edgecolor="black", linewidth=1)
@@ -186,6 +243,9 @@ for filename in sorted(os.listdir(data_dir)):
         cbar.ax.tick_params(colors="black", labelsize=7)
         cbar.outline.set_edgecolor("black")
         cbar.ax.set_facecolor("white")
+    
+    if var_type == "ww":
+        add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
 
     # --------------------------
     # Footer
