@@ -121,12 +121,11 @@ for filename in sorted(os.listdir(data_dir)):
         data[data<0.1]=np.nan
         cmap, norm = prec_colors, prec_norm
     elif var_type == "ww":
-        varname = next((vn for vn in ds.data_vars if vn.lower() in ["ww","weather"]), None)
+        varname = next((vn for vn in ds.data_vars if vn.lower() in ["WW","weather"]), None)
         if varname is None:
             print(f"Keine WW in {filename}")
             continue
         data = ds[varname].values
-        cmap, norm = None, None
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
