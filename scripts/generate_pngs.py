@@ -172,6 +172,7 @@ for filename in sorted(os.listdir(data_dir)):
             print(f"Keine WW in {filename}")
             continue
         data = ds[varname].values
+        cmap = None
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
