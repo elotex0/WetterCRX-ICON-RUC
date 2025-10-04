@@ -65,7 +65,7 @@ jobs:
           cd data/ww
           export RUN=${{ env.RUN }}
           export DATE=${{ env.DATE }}
-          seq 0 14 | xargs -n 1 -P 7 -I{} bash -c '
+          seq 1 14 | xargs -n 1 -P 7 -I{} bash -c '
             i_padded=$(printf "%03d" {})
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O ww_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
