@@ -1,6 +1,7 @@
 import sys
 import cfgrib
 import xarray as xr
+import netCDF4
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
