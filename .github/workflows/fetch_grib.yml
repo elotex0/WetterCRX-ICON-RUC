@@ -103,7 +103,7 @@ jobs:
         with:
           token: ${{ secrets.GH_PAT }}
 
-      - name: Debug: list generated PNGs
+      - name: Debug list generated PNGs
         run: ls -l iconruc/
 
       - name: Copy generated PNGs into repo
