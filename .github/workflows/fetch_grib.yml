@@ -99,24 +99,19 @@ jobs:
             echo "$TS"
           }
 
-          # t2m und tp: 14 Stunden ab Laufzeit (0–13)
           T2M_TIMESTAMPS=$(generate_timestamps 13 "$DATE_PART" "$RUN_PART" 0)
           TP_TIMESTAMPS=$(generate_timestamps 13 "$DATE_PART" "$RUN_PART" 0)
-
-          # ww: 13 Stunden ab Laufzeit, Start +1 Stunde (1–13)
           WW_TIMESTAMPS=$(generate_timestamps 12 "$DATE_PART" "$RUN_PART" 1)
 
-          cat > iconruc/${RUN}/metadata.json << EOF
-{
-  "latest_run": "${DATE_PART}_${RUN_PART}",
-  "available_params": ["t2m", "ww", "tp"],
-  "timesteps": {
-    "t2m": $T2M_TIMESTAMPS,
-    "ww": $WW_TIMESTAMPS,
-    "tp": $TP_TIMESTAMPS
-  }
-}
-EOF
+          echo "{" > iconruc/${RUN}/metadata.json
+          echo "  \"latest_run\": \"${DATE_PART}_${RUN_PART}\"," >> iconruc/${RUN}/metadata.json
+          echo "  \"available_params\": [\"t2m\", \"ww\", \"tp\"]," >> iconruc/${RUN}/metadata.json
+          echo "  \"timesteps\": {" >> iconruc/${RUN}/metadata.json
+          echo "    \"t2m\": $T2M_TIMESTAMPS," >> iconruc/${RUN}/metadata.json
+          echo "    \"ww\": $WW_TIMESTAMPS," >> iconruc/${RUN}/metadata.json
+          echo "    \"tp\": $TP_TIMESTAMPS" >> iconruc/${RUN}/metadata.json
+          echo "  }" >> iconruc/${RUN}/metadata.json
+          echo "}" >> iconruc/${RUN}/metadata.json
 
       - name: Delete GRIB2 files
         run: rm -rf data/
