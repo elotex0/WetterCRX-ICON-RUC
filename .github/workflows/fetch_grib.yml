@@ -82,15 +82,16 @@ jobs:
           DATE_PART="${DATE}"
           RUN_PART="${RUN}"
 
-          RUN_TIME="$(date -u -d "${DATE_PART} ${RUN_PART}:00:00 UTC" +"%Y-%m-%dT%H:%M:%SZ")"
+          RUN_TIME="$(date -u -d \"${DATE_PART} ${RUN_PART}:00:00\" +\"%Y-%m-%dT%H:%M:%SZ\")"
 
           generate_timestamps() {
             STEP_COUNT=$1
             BASE_DATE="$2"
-            BASE_HOUR=$((10#$3))
-            TS="["
+            BASE_HOUR="$3"
+            TS="[
+            "
             for i in $(seq 0 $STEP_COUNT); do
-              TS+='"'$(date -u -d "${BASE_DATE} ${BASE_HOUR}:00:00 UTC +${i} hour" +"%Y-%m-%dT%H:%M:%SZ")'"'
+              TS+='"'$(date -u -d "${BASE_DATE} ${BASE_HOUR}:00:00 +${i} hour" +"%Y-%m-%dT%H:%M:%SZ")'"'
               if [ $i -ne $STEP_COUNT ]; then
                 TS+=", "
               fi
@@ -108,7 +109,7 @@ jobs:
 
           cat > iconruc/${RUN}/metadata.json << EOF
 {
-  "latest_run": "${DATE_PART}_${RUN_PART}",
+  "latest_run": "$DATE_PART"_"$RUN_PART",
   "run_time": "$RUN_TIME",
   "available_params": ["t2m", "ww", "tp"],
   "timesteps": {
