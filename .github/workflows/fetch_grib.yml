@@ -82,14 +82,13 @@ jobs:
           DATE_PART="${DATE}"
           RUN_PART="${RUN}"
 
-          RUN_TIME="$(date -u -d \"${DATE_PART} ${RUN_PART}:00:00\" +\"%Y-%m-%dT%H:%M:%SZ\")"
+          RUN_TIME="$(date -u -d "${DATE_PART} ${RUN_PART}:00:00" +"%Y-%m-%dT%H:%M:%SZ")"
 
           generate_timestamps() {
             STEP_COUNT=$1
             BASE_DATE="$2"
             BASE_HOUR="$3"
-            TS="[
-            "
+            TS="["
             for i in $(seq 0 $STEP_COUNT); do
               TS+='"'$(date -u -d "${BASE_DATE} ${BASE_HOUR}:00:00 +${i} hour" +"%Y-%m-%dT%H:%M:%SZ")'"'
               if [ $i -ne $STEP_COUNT ]; then
@@ -107,7 +106,7 @@ jobs:
           # WW startet bei RUN + 3h
           WW_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$((10#$RUN_PART + 3))")
 
-          cat > iconruc/${RUN}/metadata.json << EOF
+cat > iconruc/${RUN}/metadata.json <<EOF
 {
   "latest_run": "$DATE_PART"_"$RUN_PART",
   "run_time": "$RUN_TIME",
