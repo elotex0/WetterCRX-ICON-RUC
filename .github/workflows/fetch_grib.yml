@@ -100,8 +100,8 @@ jobs:
           }
 
           # normale Parameter starten bei RUN
-          T2M_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
-          TP_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
+          T2M_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
+          TP_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
 
           # WW startet bei RUN + 3h
           WW_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$((10#$RUN_PART + 3))")
