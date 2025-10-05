@@ -237,7 +237,7 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     # Colorbar (falls relevant)
     # --------------------------
-    if cmap is not None:
+    if var_type in ["t2m", "tp"]:
         legend_h_px, legend_bottom_px = 50, 45
         cbar_ax = fig.add_axes([0.03, legend_bottom_px/FIG_H_PX, 0.94, legend_h_px/FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", extend='neither')
