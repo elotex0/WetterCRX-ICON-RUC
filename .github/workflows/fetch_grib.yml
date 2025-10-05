@@ -1,4 +1,4 @@
-name: Fetch ICON-RUC GRIB2 and Generate PNGs (Test)
+name: Fetch ICON-RUC GRIB2 and Generate PNGs (DE Timestamps)
 
 on:
   workflow_dispatch:
@@ -37,37 +37,37 @@ jobs:
           echo "RUN=$RUN" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
 
-      - name: Download t2m GRIB2 files (Test)
+      - name: Download t2m GRIB2 files
         run: |
           mkdir -p data/t2m
           cd data/t2m
-          seq 0 1 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/T_2M/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O t2m_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Download ww GRIB2 files (Test)
+      - name: Download ww GRIB2 files
         run: |
           mkdir -p data/ww
           cd data/ww
-          seq 1 2 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 1 13 | xargs -n 1 -P 4 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O ww_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Download tp GRIB2 files (Test)
+      - name: Download tp GRIB2 files
         run: |
           mkdir -p data/tp
           cd data/tp
-          seq 0 1 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/TOT_PREC_D/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O tot_prec_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Generate PNGs (Test)
+      - name: Generate PNGs
         run: |
           mkdir -p iconruc/${RUN}/t2m
           mkdir -p iconruc/${RUN}/ww
@@ -77,14 +77,46 @@ jobs:
           python scripts/generate_pngs.py data/ww iconruc/${RUN}/ww ww
           python scripts/generate_pngs.py data/tp iconruc/${RUN}/tp tp
 
-      - name: Generate metadata.json (Test, no timestamps)
+      - name: Generate metadata.json (DE timestamps)
         run: |
-          cat > iconruc/${RUN}/metadata.json << EOF
-          {
-            "latest_run": "${DATE}_${RUN}",
-            "available_params": ["t2m", "ww", "tp"]
+          DATE_PART="${DATE}"
+          RUN_PART="${RUN}"
+
+          generate_timestamps() {
+            STEP_COUNT=$1
+            BASE_DATE="$2"
+            BASE_HOUR="$3"
+            START_HOUR_OFFSET=$4
+            TZ="Europe/Berlin"
+            TS="["
+            for i in $(seq 0 $STEP_COUNT); do
+              TS+='"'$(TZ=$TZ date -d "${BASE_DATE} ${BASE_HOUR}:00 +${START_HOUR_OFFSET} hour +${i} hour" +"%Y-%m-%dT%H:%M:%S%:z")'"'
+              if [ $i -ne $STEP_COUNT ]; then
+                TS+=", "
+              fi
+            done
+            TS+="]"
+            echo "$TS"
           }
-          EOF
+
+          # t2m und tp: 14 Stunden ab Laufzeit (0–13)
+          T2M_TIMESTAMPS=$(generate_timestamps 13 "$DATE_PART" "$RUN_PART" 0)
+          TP_TIMESTAMPS=$(generate_timestamps 13 "$DATE_PART" "$RUN_PART" 0)
+
+          # ww: 13 Stunden ab Laufzeit, Start +1 Stunde (1–13)
+          WW_TIMESTAMPS=$(generate_timestamps 12 "$DATE_PART" "$RUN_PART" 1)
+
+          cat > iconruc/${RUN}/metadata.json << EOF
+{
+  "latest_run": "${DATE_PART}_${RUN_PART}",
+  "available_params": ["t2m", "ww", "tp"],
+  "timesteps": {
+    "t2m": $T2M_TIMESTAMPS,
+    "ww": $WW_TIMESTAMPS,
+    "tp": $TP_TIMESTAMPS
+  }
+}
+EOF
 
       - name: Delete GRIB2 files
         run: rm -rf data/
@@ -94,7 +126,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add iconruc/${RUN}
-          git commit -m "Test ICON-RUC PNGs + metadata.json for run ${RUN}" || echo "No changes to commit"
+          git commit -m "ICON-RUC PNGs + metadata.json with DE timestamps for run ${RUN}" || echo "No changes to commit"
           git push origin HEAD:main
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
