@@ -77,43 +77,12 @@ jobs:
           python scripts/generate_pngs.py data/ww iconruc/${RUN}/ww ww
           python scripts/generate_pngs.py data/tp iconruc/${RUN}/tp tp
 
-      - name: Generate metadata.json (Test)
+      - name: Generate metadata.json (Test, no timestamps)
         run: |
-          LATEST_RUN="${RUN}"
-          DATE_PART="${DATE}"
-          RUN_PART="${RUN}"
-
-          RUN_TIME="$(date -u -d "${DATE_PART} ${RUN_PART}:00:00" +"%Y-%m-%dT%H:%M:%SZ")"
-
-          generate_timestamps() {
-            STEP_COUNT=$1
-            BASE_DATE="$2"
-            BASE_HOUR="$3"
-            TS="["
-            for i in $(seq 0 $STEP_COUNT); do
-              TS+='"'$(date -u -d "${BASE_DATE} ${BASE_HOUR}:00:00 +${i} hour" +"%Y-%m-%dT%H:%M:%SZ")'"'
-              if [ $i -ne $STEP_COUNT ]; then
-                TS+=", "
-              fi
-            done
-            TS+="]"
-            echo "$TS"
-          }
-
-          T2M_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
-          WW_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
-          TP_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
-
           cat > iconruc/${RUN}/metadata.json << EOF
           {
-            "latest_run": "$DATE_PART"_"$RUN_PART",
-            "run_time": "$RUN_TIME",
-            "available_params": ["t2m", "ww", "tp"],
-            "timesteps": {
-              "t2m": $T2M_TIMESTAMPS,
-              "ww": $WW_TIMESTAMPS,
-              "tp": $TP_TIMESTAMPS
-            }
+            "latest_run": "${DATE}_${RUN}",
+            "available_params": ["t2m", "ww", "tp"]
           }
           EOF
 
