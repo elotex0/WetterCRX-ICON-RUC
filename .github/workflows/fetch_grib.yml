@@ -33,7 +33,7 @@ jobs:
         id: set_run_date
         run: |
           DATE="2025-10-05"
-          RUN="22"
+          RUN="16"
           echo "RUN=$RUN" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
 
@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p data/t2m
           cd data/t2m
-          seq 0 2 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 0 1 | xargs -n 1 -P 2 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/T_2M/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O t2m_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
@@ -51,7 +51,7 @@ jobs:
         run: |
           mkdir -p data/ww
           cd data/ww
-          seq 1 3 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 1 2 | xargs -n 1 -P 2 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O ww_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir -p data/tp
           cd data/tp
-          seq 0 2 | xargs -n 1 -P 2 -I{} bash -c '
+          seq 0 1 | xargs -n 1 -P 2 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/TOT_PREC_D/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -O tot_prec_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
@@ -79,6 +79,7 @@ jobs:
 
       - name: Generate metadata.json (Test)
         run: |
+          LATEST_RUN="${RUN}"
           DATE_PART="${DATE}"
           RUN_PART="${RUN}"
 
@@ -99,25 +100,22 @@ jobs:
             echo "$TS"
           }
 
-          # normale Parameter starten bei RUN
-          T2M_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
-          TP_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
+          T2M_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
+          WW_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$RUN_PART")
+          TP_TIMESTAMPS=$(generate_timestamps 1 "$DATE_PART" "$RUN_PART")
 
-          # WW startet bei RUN + 3h
-          WW_TIMESTAMPS=$(generate_timestamps 2 "$DATE_PART" "$((10#$RUN_PART + 3))")
-
-cat > iconruc/${RUN}/metadata.json <<EOF
-{
-  "latest_run": "$DATE_PART"_"$RUN_PART",
-  "run_time": "$RUN_TIME",
-  "available_params": ["t2m", "ww", "tp"],
-  "timesteps": {
-    "t2m": $T2M_TIMESTAMPS,
-    "ww": $WW_TIMESTAMPS,
-    "tp": $TP_TIMESTAMPS
-  }
-}
-EOF
+          cat > iconruc/${RUN}/metadata.json << EOF
+          {
+            "latest_run": "$DATE_PART"_"$RUN_PART",
+            "run_time": "$RUN_TIME",
+            "available_params": ["t2m", "ww", "tp"],
+            "timesteps": {
+              "t2m": $T2M_TIMESTAMPS,
+              "ww": $WW_TIMESTAMPS,
+              "tp": $TP_TIMESTAMPS
+            }
+          }
+          EOF
 
       - name: Delete GRIB2 files
         run: rm -rf data/
