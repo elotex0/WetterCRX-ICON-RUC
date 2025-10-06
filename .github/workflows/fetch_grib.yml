@@ -97,7 +97,7 @@ jobs:
         run: rm -rf data/
 
 
-    deploy_to_r2:
+  deploy_to_r2:
       runs-on: ubuntu-latest
       needs: fetch_and_generate
       steps:
