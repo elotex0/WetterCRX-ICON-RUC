@@ -239,32 +239,39 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     if var_type in ["t2m", "tp"]:
         legend_h_px, legend_bottom_px = 50, 45
+        bounds = t2m_bounds if var_type=="t2m" else prec_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px/FIG_H_PX, 0.94, legend_h_px/FIG_H_PX])
-        cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", extend='neither')
+        cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
         cbar.outline.set_edgecolor("black")
         cbar.ax.set_facecolor("white")
-    
-    if var_type == "ww":
+
+        if var_type=="tp":
+            cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
+    else:
         add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
 
-    # --------------------------
     # Footer
-    # --------------------------
-    footer_ax = fig.add_axes([0.0, 0.0, 1.0, BOTTOM_AREA_PX/FIG_H_PX])
+    footer_ax = fig.add_axes([0.0, (legend_bottom_px + legend_h_px)/FIG_H_PX, 1.0,
+                              (BOTTOM_AREA_PX - legend_h_px - legend_bottom_px)/FIG_H_PX])
     footer_ax.axis("off")
-    footer_texts = {"t2m": "Temperatur 2m (°C)", "tp": "Niederschlag 1h (mm)", "ww": "Signifikantes Wetter"}
+    footer_texts = {
+        "ww": "Signifikantes Wetter",
+        "t2m": "Temperatur 2m (°C)",
+        "tp": "Niederschlag, 1Std (mm)",
+    }
+
     left_text = footer_texts.get(var_type, var_type) + \
-                (f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst"
-                 if run_time_utc is not None else "\nICON-RUC (??z), Deutscher Wetterdienst")
+                f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst" \
+                if run_time_utc is not None else \
+                footer_texts.get(var_type, var_type) + "\nICON-RUC (??z), Deutscher Wetterdienst"
+
     footer_ax.text(0.01, 0.85, left_text, fontsize=12, fontweight="bold", va="top", ha="left")
     footer_ax.text(0.734, 0.92, "Prognose für:", fontsize=12, va="top", ha="left", fontweight="bold")
     footer_ax.text(0.99, 0.68, f"{valid_time_local:%d.%m.%Y %H:%M} Uhr",
                    fontsize=12, va="top", ha="right", fontweight="bold")
 
-    # --------------------------
     # Speichern
-    # --------------------------
     outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.png"
     plt.savefig(os.path.join(output_dir, outname), dpi=100, bbox_inches=None, pad_inches=0)
     plt.close()
