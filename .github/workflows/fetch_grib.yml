@@ -128,11 +128,11 @@ jobs:
         - name: Upload current run and metadata.json to R2
           run: |
             # Upload run folder
-            aws s3 sync ./icon-ruc/${{ needs.fetch_and_generate.outputs.run }}/ s3://${{ secrets.R2_BUCKET }}/icon-ruc/${{ needs.fetch_and_generate.outputs.run }}/ \
+            aws s3 sync ./iconruc/${{ needs.fetch_and_generate.outputs.run }}/ s3://${{ secrets.R2_BUCKET }}/icon-ruc/${{ needs.fetch_and_generate.outputs.run }}/ \
               --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
 
             # Upload metadata.json outside run folder
-            aws s3 cp ./icon-ruc/metadata.json s3://${{ secrets.R2_BUCKET }}/icon-ruc/metadata.json \
+            aws s3 cp ./iconruc/metadata.json s3://${{ secrets.R2_BUCKET }}/icon-ruc/metadata.json \
               --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
           env:
             AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
