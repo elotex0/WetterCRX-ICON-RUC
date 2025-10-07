@@ -80,10 +80,10 @@ t2m_colors = [
 t2m_cmap = ListedColormap(t2m_colors)
 t2m_norm = BoundaryNorm(t2m_bounds, t2m_cmap.N)
 
-prec_bounds = [0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+prec_bounds = [0, 0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                12, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 125]
 prec_colors = ListedColormap([
-    "#B4D7FF","#75BAFF","#349AFF","#0582FF","#0069D2",
+    "#FFFFFF","#B4D7FF","#75BAFF","#349AFF","#0582FF","#0069D2",
     "#003680","#148F1B","#1ACF06","#64ED07","#FFF32B",
     "#E9DC01","#F06000","#FF7F26","#FFA66A","#F94E78",
     "#F71E53","#BE0000","#880000","#64007F","#C201FC",
