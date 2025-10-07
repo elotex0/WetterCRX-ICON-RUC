@@ -237,10 +237,11 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     # Colorbar (falls relevant)
     # --------------------------
+    legend_h_px = 50
+    legend_bottom_px = 45
     if var_type in ["t2m", "tp"]:
-        legend_h_px, legend_bottom_px = 50, 45
         bounds = t2m_bounds if var_type=="t2m" else prec_bounds
-        cbar_ax = fig.add_axes([0.03, legend_bottom_px/FIG_H_PX, 0.94, legend_h_px/FIG_H_PX])
+        cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
         cbar.outline.set_edgecolor("black")
