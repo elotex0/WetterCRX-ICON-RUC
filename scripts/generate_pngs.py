@@ -5,7 +5,6 @@ import netCDF4
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import geopandas as gpd
 import pandas as pd
 import os
 import matplotlib.colors as mcolors
@@ -34,7 +33,6 @@ os.makedirs(output_dir, exist_ok=True)
 # ------------------------------
 # Geo-Daten
 # ------------------------------
-bundeslaender = gpd.read_file("scripts/bundeslaender.geojson")
 cities = pd.DataFrame({
     'name': ['Berlin', 'Hamburg', 'München', 'Köln', 'Frankfurt', 'Dresden',
              'Stuttgart', 'Düsseldorf', 'Nürnberg', 'Erfurt', 'Leipzig',
@@ -103,19 +101,10 @@ FIG_W_PX, FIG_H_PX = 880, 830
 BOTTOM_AREA_PX = 179
 TOP_AREA_PX = FIG_H_PX - BOTTOM_AREA_PX
 TARGET_ASPECT = FIG_W_PX / TOP_AREA_PX
-_minx, _miny, _maxx, _maxy = bundeslaender.total_bounds
-_w, _h = _maxx - _minx, _maxy - _miny
-ymin, ymax = _miny, _maxy
-left_pad_factor, right_pad_factor = 0.56, 0.34
-xmin = _minx - _w * left_pad_factor
-xmax = _maxx + _w * right_pad_factor
-needed_w = _h * TARGET_ASPECT
-current_w = xmax - xmin
-if current_w < needed_w:
-    extra = (needed_w - current_w) / 2
-    xmin -= extra
-    xmax += extra
-extent = [xmin, xmax, ymin, ymax]
+
+# Bounding Box Deutschland (fix, keine GeoJSON nötig)
+extent = [5, 16, 47, 56]
+
 
 # ------------------------------
 # WW-Legende Funktion
@@ -224,8 +213,9 @@ for filename in sorted(os.listdir(data_dir)):
         im = ax.scatter(lons, lats, c=idx_data, s=2, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
 
 
-    # Bundesländer & Städte
-    bundeslaender.boundary.plot(ax=ax, edgecolor="black", linewidth=1)
+    # Bundesländer-Grenzen aus Cartopy (statt GeoJSON)
+    ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
+
     for _, city in cities.iterrows():
         ax.plot(city["lon"], city["lat"], "o", markersize=6, markerfacecolor="black",
                 markeredgecolor="white", markeredgewidth=1.5, zorder=5)
