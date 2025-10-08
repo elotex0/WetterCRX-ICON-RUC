@@ -44,12 +44,12 @@ jobs:
 
           echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
 
-      # 🆕 NEU: Grid-Datei automatisch herunterladen (anstatt LFS)
+      # 🆕 NEU: Grid-Datei herunterladen
       - name: Download ICON unstructured grid
         run: |
           mkdir -p data/grid
           wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
-          echo "✅ grid.nc heruntergeladen"
+          echo "✅ ICON grid heruntergeladen"
 
       - name: Download t2m GRIB2 files
         run: |
@@ -87,19 +87,21 @@ jobs:
           mkdir -p iconruc/$RUN/ww
           mkdir -p iconruc/$RUN/tp
 
-          # grid.nc befindet sich jetzt in data/grid/
           python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc
           python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc
           python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc
+
+      # 🧹 Grid-Datei & GRIBs löschen (Platz sparen)
+      - name: Clean up temporary data
+        run: |
+          echo "🧹 Entferne temporäre Dateien..."
+          rm -rf data/
 
       - name: Upload PNGs as artifact (for debugging)
         uses: actions/upload-artifact@v4
         with:
           name: iconruc
           path: iconruc
-
-      - name: Delete GRIB2 files to save space
-        run: rm -rf data/
 
 
   deploy_to_r2:
