@@ -24,6 +24,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 data_dir = sys.argv[1]
 output_dir = sys.argv[2]
 var_type = sys.argv[3].lower()
+gridfile = sys.argv[4] if len(sys.argv) > 4 else "scripts/icon_grid_0047_R19B07_L.nc"
 os.makedirs(output_dir, exist_ok=True)
 
 # ------------------------------
@@ -137,7 +138,6 @@ def add_ww_legend_bottom(fig, ww_categories, ww_colors_base):
 # ------------------------------
 # ICON Grid laden (einmal!)
 # ------------------------------
-gridfile = "scripts/icon_grid_0047_R19B07_L.nc"
 nc = netCDF4.Dataset(gridfile)  # Datei öffnen
 
 lats = np.rad2deg(nc.variables["clat"][:])
