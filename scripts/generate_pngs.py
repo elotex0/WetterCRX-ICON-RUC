@@ -24,7 +24,11 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 data_dir = sys.argv[1]
 output_dir = sys.argv[2]
 var_type = sys.argv[3].lower()
-gridfile = sys.argv[4] if len(sys.argv) > 4 else "scripts/icon_grid_0047_R19B07_L.nc"
+gridfile = sys.argv[4] if len(sys.argv) > 4 else "data/grid/grid.nc"
+
+if not os.path.exists(gridfile):
+    raise FileNotFoundError(f"Grid-Datei nicht gefunden: {gridfile}")
+    
 os.makedirs(output_dir, exist_ok=True)
 
 # ------------------------------
