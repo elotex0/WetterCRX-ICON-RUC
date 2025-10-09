@@ -34,7 +34,7 @@ jobs:
         run: |
           HOUR=$(date -u +%H)
           DATE=$(date -u +%Y-%m-%d)
-          RUN=$(printf "%02d" $HOUR)
+          RUN=$HOUR
 
           echo "RUN=$RUN" >> $GITHUB_ENV
           echo "DATE=$DATE" >> $GITHUB_ENV
