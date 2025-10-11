@@ -289,7 +289,7 @@ for filename in sorted(os.listdir(data_dir)):
         "ww": "Signifikantes Wetter",
         "t2m": "Temperatur 2m (°C)",
         "tp": "Niederschlag, 1Std (mm)",
-        "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)"
+        "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
         "tp_acc": "Akkumulierter Niederschlag (mm)"
         
     }
