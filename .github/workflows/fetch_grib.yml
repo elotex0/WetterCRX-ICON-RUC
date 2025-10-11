@@ -25,20 +25,18 @@ jobs:
 
           echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
 
+# ------------------- JOBS FÜR JE DATATYPE -------------------
+# Funktional identisch: jeder Job lädt GRID + GRIB2 + PNGs, löscht temp und lädt Artifact hoch
+
   t2m_job:
     runs-on: ubuntu-latest
     needs: set_run_date
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
 
       - name: Download GRID
         run: |
@@ -60,28 +58,30 @@ jobs:
           mkdir -p iconruc/${{ needs.set_run_date.outputs.run }}/t2m
           python scripts/generate_pngs.py data/t2m iconruc/${{ needs.set_run_date.outputs.run }}/t2m t2m data/grid/grid.nc
 
-      - name: Upload t2m artifact
-        uses: actions/upload-artifact@v4
+      - name: Clean temporary data
+        run: rm -rf data/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: iconruc-t2m
           path: iconruc/${{ needs.set_run_date.outputs.run }}/t2m
 
+# ------------------- WW -------------------
   ww_job:
     runs-on: ubuntu-latest
     needs: set_run_date
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
+
       - name: Download GRID
         run: |
           mkdir -p data/grid
           wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
+
       - name: Download ww GRIB2
         run: |
           mkdir -p data/ww
@@ -91,32 +91,36 @@ jobs:
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${{ needs.set_run_date.outputs.date }}T${{ needs.set_run_date.outputs.run }}:00/s/PT${i_padded}H00M.grib2"
             wget -q -O ww_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
+
       - name: Generate PNGs
         run: |
           mkdir -p iconruc/${{ needs.set_run_date.outputs.run }}/ww
           python scripts/generate_pngs.py data/ww iconruc/${{ needs.set_run_date.outputs.run }}/ww ww data/grid/grid.nc
-      - name: Upload ww artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Clean temporary data
+        run: rm -rf data/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: iconruc-ww
           path: iconruc/${{ needs.set_run_date.outputs.run }}/ww
 
+# ------------------- TP -------------------
   tp_job:
     runs-on: ubuntu-latest
     needs: set_run_date
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
+
       - name: Download GRID
         run: |
           mkdir -p data/grid
           wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
+
       - name: Download tp GRIB2
         run: |
           mkdir -p data/tp
@@ -126,32 +130,36 @@ jobs:
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/TOT_PREC_D/r/${{ needs.set_run_date.outputs.date }}T${{ needs.set_run_date.outputs.run }}:00/s/PT${i_padded}H00M.grib2"
             wget -q -O tot_prec_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
+
       - name: Generate PNGs
         run: |
           mkdir -p iconruc/${{ needs.set_run_date.outputs.run }}/tp
           python scripts/generate_pngs.py data/tp iconruc/${{ needs.set_run_date.outputs.run }}/tp tp data/grid/grid.nc
-      - name: Upload tp artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Clean temporary data
+        run: rm -rf data/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: iconruc-tp
           path: iconruc/${{ needs.set_run_date.outputs.run }}/tp
 
+# ------------------- DBZ_CMAX -------------------
   dbz_cmax_job:
     runs-on: ubuntu-latest
     needs: set_run_date
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
+
       - name: Download GRID
         run: |
           mkdir -p data/grid
           wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
+
       - name: Download dbz_cmax GRIB2
         run: |
           mkdir -p data/dbz_cmax
@@ -161,22 +169,26 @@ jobs:
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/DBZ_CMAX/r/${{ needs.set_run_date.outputs.date }}T${{ needs.set_run_date.outputs.run }}:00/s/PT${i_padded}H00M.grib2"
             wget -q -O dbz_cmax_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
+
       - name: Generate PNGs
         run: |
           mkdir -p iconruc/${{ needs.set_run_date.outputs.run }}/dbz_cmax
           python scripts/generate_pngs.py data/dbz_cmax iconruc/${{ needs.set_run_date.outputs.run }}/dbz_cmax dbz_cmax data/grid/grid.nc
-      - name: Upload dbz_cmax artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Clean temporary data
+        run: rm -rf data/
+
+      - uses: actions/upload-artifact@v4
         with:
           name: iconruc-dbz_cmax
           path: iconruc/${{ needs.set_run_date.outputs.run }}/dbz_cmax
 
+# ------------------- DEPLOY -------------------
   deploy_to_r2:
     needs: [t2m_job, ww_job, tp_job, dbz_cmax_job]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Download all PNG artifacts
         uses: actions/download-artifact@v4
