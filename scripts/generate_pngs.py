@@ -95,6 +95,20 @@ prec_colors = ListedColormap([
 prec_norm = BoundaryNorm(prec_bounds, prec_colors.N)
 
 # ------------------------------
+# DBZ-CMAX Farben
+# ------------------------------
+dbz_bounds = [0, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 63, 67, 70]
+dbz_colors = ListedColormap([
+    "#676767", "#FFFFFF", "#B3EFED", "#8CE7E2", "#00F5ED",
+    "#00CEF0", "#01AFF4", "#028DF6", "#014FF7", "#0000F6",
+    "#00FF01", "#01DF00", "#00D000", "#00BF00", "#00A701",
+    "#019700", "#FFFF00", "#F9F000", "#EDD200", "#E7B500",
+    "#FF5000", "#FF2801", "#F40000", "#EA0001", "#CC0000",
+    "#FFC8FF", "#E9A1EA", "#D379D3", "#BE55BE", "#960E96"
+])
+dbz_norm = mcolors.BoundaryNorm(dbz_bounds, dbz_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -166,6 +180,10 @@ for filename in sorted(os.listdir(data_dir)):
             continue
         data = ds[varname].values
         cmap = None
+    elif var_type == "dbz_cmax"
+        if "DBZ_CMAX" not in ds: continue
+        data = ds["DBZ_CMAX"].values
+        cmap, norm = dbz_colors, dbz_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
@@ -231,8 +249,8 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp"]:
-        bounds = t2m_bounds if var_type=="t2m" else prec_bounds
+    if var_type in ["t2m", "tp", "dbz_cmax"]:
+        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -252,6 +270,7 @@ for filename in sorted(os.listdir(data_dir)):
         "ww": "Signifikantes Wetter",
         "t2m": "Temperatur 2m (°C)",
         "tp": "Niederschlag, 1Std (mm)",
+        "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)"
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
