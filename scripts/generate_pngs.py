@@ -180,7 +180,7 @@ for filename in sorted(os.listdir(data_dir)):
             continue
         data = ds[varname].values
         cmap = None
-    elif var_type == "dbz_cmax"
+    elif var_type == "dbz_cmax":
         if "DBZ_CMAX" not in ds: continue
         data = ds["DBZ_CMAX"].values
         cmap, norm = dbz_colors, dbz_norm
