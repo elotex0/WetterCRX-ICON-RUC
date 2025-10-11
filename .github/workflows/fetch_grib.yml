@@ -81,14 +81,23 @@ jobs:
             wget -q -O tot_prec_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Download tp GRIB2 files
+      - name: Download dbz GRIB2 files
         run: |
           mkdir -p data/dbz_cmax
           cd data/dbz_cmax
-          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+          seq 0 13 | xargs -n 1 -P 7 -I{} bash -c '
             i_padded=$(printf "%03d" {} )
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/DBZ_CMAX/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -q -O dbz_cmax_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
+      - name: Download tp_acc GRIB2 files
+        run: |
+          mkdir -p data/tp_acc
+          cd data/tp_acc
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/TOT_PREC/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O tp_acc_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
       - name: Generate PNGs
@@ -97,12 +106,13 @@ jobs:
           mkdir -p iconruc/$RUN/ww
           mkdir -p iconruc/$RUN/tp
           mkdir -p iconruc/$RUN/dbz_cmax
+          mkdir -p iconruc/$RUN/tp_acc
 
           python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc
           python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc
           python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc
           python scripts/generate_pngs.py data/dbz_cmax iconruc/$RUN/dbz_cmax dbz_cmax data/grid/grid.nc
-          
+          python scripts/generate_pngs.py data/tp_acc iconruc/$RUN/tp_acc tp_acc data/grid/grid.nc
 
       # 🧹 Grid-Datei & GRIBs löschen (Platz sparen)
       - name: Clean up temporary data
