@@ -109,6 +109,20 @@ dbz_colors = ListedColormap([
 dbz_norm = mcolors.BoundaryNorm(dbz_bounds, dbz_colors.N)
 
 # ------------------------------
+# Aufsummierter Niederschlag (tp_acc)
+# ------------------------------
+tp_acc_bounds = [0.1, 1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100,
+                 125, 150, 175, 200, 250, 300, 400, 500]
+tp_acc_colors = ListedColormap([
+    "#B4D7FF","#75BAFF","#349AFF","#0582FF","#0069D2",
+    "#003680","#148F1B","#1ACF06","#64ED07","#FFF32B",
+    "#E9DC01","#F06000","#FF7F26","#FFA66A","#F94E78",
+    "#F71E53","#BE0000","#880000","#64007F","#C201FC",
+    "#DD66FE","#EBA6FF","#F9E7FF","#D4D4D4","#969696"
+])
+tp_acc_norm = mcolors.BoundaryNorm(tp_acc_bounds, tp_acc_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -184,6 +198,11 @@ for filename in sorted(os.listdir(data_dir)):
         if "DBZ_CMAX" not in ds: continue
         data = ds["DBZ_CMAX"].values
         cmap, norm = dbz_colors, dbz_norm
+    elif var_type == "tp_acc":
+        if "tp" not in ds: continue
+        data = ds["tp"].values
+        data[data<0.1]=np.nan
+        cmap, norm = tp_acc_colors, tp_acc_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
@@ -249,8 +268,8 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax"]:
-        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc"]:
+        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds if var_type=="dbz_cmax" else tp_acc_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -271,6 +290,8 @@ for filename in sorted(os.listdir(data_dir)):
         "t2m": "Temperatur 2m (°C)",
         "tp": "Niederschlag, 1Std (mm)",
         "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)"
+        "tp_acc": "Akkumulierter Niederschlag (mm)"
+        
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
