@@ -4,15 +4,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  # ------------------- STEP 1: Set RUN and DATE -------------------
-  set_run_date:
+  fetch_and_generate:
     runs-on: ubuntu-latest
     outputs:
-      run: ${{ steps.set_run_date_step.outputs.run }}
-      date: ${{ steps.set_run_date_step.outputs.date }}
+      run: ${{ steps.set_run_date.outputs.run }}
+
     steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache Python packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Set RUN and DATE (hourly)
-        id: set_run_date_step
+        id: set_run_date
         run: |
           HOUR=$(date -u +%H)
           DATE=$(date -u +%Y-%m-%d)
@@ -26,89 +44,100 @@ jobs:
 
           echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
 
-      # Download grid (einmalig)
+      # 🆕 NEU: Grid-Datei herunterladen
       - name: Download ICON unstructured grid
         run: |
           mkdir -p data/grid
           wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
           echo "✅ ICON grid heruntergeladen"
 
-  # ------------------- STEP 2: Parallel jobs via MATRIX -------------------
-  generate_pngs:
-    needs: set_run_date
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        datatype: [t2m, ww, tp, dbz_cmax]
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Download GRIB2 files for ${{ matrix.datatype }}
+      - name: Download t2m GRIB2 files
         run: |
-          mkdir -p data/${{ matrix.datatype }}
-          cd data/${{ matrix.datatype }}
-          # Für WW ist die Sequenz 1-14, sonst 0-13
-          if [ "${{ matrix.datatype }}" = "ww" ]; then MAX=14; START=1; else MAX=13; START=0; fi
-          seq $START $MAX | xargs -n 1 -P 4 -I{} bash -c '
-            i_padded=$(printf "%03d" {})
-            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/${{ matrix.datatype }}/r/${{ needs.set_run_date.outputs.date }}T${{ needs.set_run_date.outputs.run }}:00/s/PT${i_padded}H00M.grib2"
-            wget -q -O ${matrix.datatype}_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          mkdir -p data/t2m
+          cd data/t2m
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/T_2M/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O t2m_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Generate PNGs for ${{ matrix.datatype }}
+      - name: Download ww GRIB2 files
         run: |
-          mkdir -p iconruc/${{ needs.set_run_date.outputs.run }}/${{ matrix.datatype }}
-          python scripts/generate_pngs.py data/${{ matrix.datatype }} iconruc/${{ needs.set_run_date.outputs.run }}/${{ matrix.datatype }} ${{ matrix.datatype }} data/grid/grid.nc
+          mkdir -p data/ww
+          cd data/ww
+          seq 1 14 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WW/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O ww_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
 
-      - name: Upload PNGs artifact for ${{ matrix.datatype }}
+      - name: Download tp GRIB2 files
+        run: |
+          mkdir -p data/tp
+          cd data/tp
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/TOT_PREC_D/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O tot_prec_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
+
+      - name: Download tp GRIB2 files
+        run: |
+          mkdir -p data/dbz_cmax
+          cd data/dbz_cmax
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/DBZ_CMAX/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O dbz_cmax_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
+
+      - name: Generate PNGs
+        run: |
+          mkdir -p iconruc/$RUN/t2m
+          mkdir -p iconruc/$RUN/ww
+          mkdir -p iconruc/$RUN/tp
+          mkdir -p iconruc/$RUN/dbz_cmax
+
+          python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc
+          python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc
+          python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc
+          python scripts/generate_pngs.py data/dbz_cmax iconruc/$RUN/dbz_cmax dbz_cmax data/grid/grid.nc
+          
+
+      # 🧹 Grid-Datei & GRIBs löschen (Platz sparen)
+      - name: Clean up temporary data
+        run: |
+          echo "🧹 Entferne temporäre Dateien..."
+          rm -rf data/
+
+      - name: Upload PNGs as artifact (for debugging)
         uses: actions/upload-artifact@v4
         with:
-          name: iconruc-${{ matrix.datatype }}
-          path: iconruc/${{ needs.set_run_date.outputs.run }}/${{ matrix.datatype }}
+          name: iconruc
+          path: iconruc
 
-  # ------------------- STEP 3: Deploy to R2 -------------------
+
   deploy_to_r2:
-    needs: generate_pngs
     runs-on: ubuntu-latest
+    needs: fetch_and_generate
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Download all PNG artifacts
+      - name: Download PNGs artifact
         uses: actions/download-artifact@v4
         with:
-          name: iconruc-t2m
-          path: iconruc/t2m
-      - uses: actions/download-artifact@v4
-        with:
-          name: iconruc-ww
-          path: iconruc/ww
-      - uses: actions/download-artifact@v4
-        with:
-          name: iconruc-tp
-          path: iconruc/tp
-      - uses: actions/download-artifact@v4
-        with:
-          name: iconruc-dbz_cmax
-          path: iconruc/dbz_cmax
+          name: iconruc
+          path: ./iconruc
 
       - name: Generate Metadata
         run: |
-          python scripts/generate_metadata.py iconruc/${{ needs.set_run_date.outputs.run }} ${{ needs.set_run_date.outputs.run }} ${{ needs.set_run_date.outputs.date }}
+          python scripts/generate_metadata.py iconruc/${{ needs.fetch_and_generate.outputs.run }} ${{ needs.fetch_and_generate.outputs.run }} ${{ env.DATE }}
 
       - name: Clean old runs on R2 except current
         run: |
           for run_folder in $(aws s3 ls s3://${{ secrets.R2_BUCKET }}/icon-ruc/ --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com | awk '{print $2}' | sed 's#/##'); do
-            if [ "$run_folder" != "${{ needs.set_run_date.outputs.run }}/" ]; then
+            if [ "$run_folder" != "${{ needs.fetch_and_generate.outputs.run }}/" ]; then
               aws s3 rm s3://${{ secrets.R2_BUCKET }}/icon-ruc/$run_folder --recursive --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
             fi
           done
@@ -118,8 +147,9 @@ jobs:
 
       - name: Upload current run and metadata.json to R2
         run: |
-          aws s3 sync ./iconruc/${{ needs.set_run_date.outputs.run }}/ s3://${{ secrets.R2_BUCKET }}/icon-ruc/${{ needs.set_run_date.outputs.run }}/ \
+          aws s3 sync ./iconruc/${{ needs.fetch_and_generate.outputs.run }}/ s3://${{ secrets.R2_BUCKET }}/icon-ruc/${{ needs.fetch_and_generate.outputs.run }}/ \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+
           aws s3 cp ./iconruc/metadata.json s3://${{ secrets.R2_BUCKET }}/icon-ruc/metadata.json \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         env:
