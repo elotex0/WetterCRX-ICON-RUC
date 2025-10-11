@@ -194,19 +194,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: iconruc-t2m
-          path: iconruc/t2m
+          path: iconruc/${{ needs.set_run_date.outputs.run }}/t2m
       - uses: actions/download-artifact@v4
         with:
           name: iconruc-ww
-          path: iconruc/ww
+          path: iconruc/${{ needs.set_run_date.outputs.run }}/ww
       - uses: actions/download-artifact@v4
         with:
           name: iconruc-tp
-          path: iconruc/tp
+          path: iconruc/${{ needs.set_run_date.outputs.run }}/tp
       - uses: actions/download-artifact@v4
         with:
           name: iconruc-dbz_cmax
-          path: iconruc/dbz_cmax
+          path: iconruc/${{ needs.set_run_date.outputs.run }}/dbz_cmax
 
       - name: Generate Metadata
         run: |
