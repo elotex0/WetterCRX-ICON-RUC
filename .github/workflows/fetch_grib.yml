@@ -98,11 +98,11 @@ jobs:
           mkdir -p iconruc/$RUN/tp
           mkdir -p iconruc/$RUN/dbz_cmax
 
-          python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc
-          python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc
-          python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc
-          python scripts/generate_pngs.py data/dbz_cmax iconruc/$RUN/dbz_cmax dbz_cmax data/grid/grid.nc
-          
+          python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc &
+          python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc &
+          python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc &
+          python scripts/generate_pngs.py data/dbz_cmax iconruc/$RUN/dbz_cmax dbz_cmax data/grid/grid.nc &
+          wait
 
       # 🧹 Grid-Datei & GRIBs löschen (Platz sparen)
       - name: Clean up temporary data
