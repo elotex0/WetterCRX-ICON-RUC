@@ -100,31 +100,67 @@ jobs:
             wget -q -O tp_acc_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
-      - name: Generate PNGs
-        run: |
-          mkdir -p iconruc/$RUN/t2m
-          mkdir -p iconruc/$RUN/ww
-          mkdir -p iconruc/$RUN/tp
-          mkdir -p iconruc/$RUN/dbz_cmax
-          mkdir -p iconruc/$RUN/tp_acc
-
-          python scripts/generate_pngs.py data/t2m iconruc/$RUN/t2m t2m data/grid/grid.nc
-          python scripts/generate_pngs.py data/ww iconruc/$RUN/ww ww data/grid/grid.nc
-          python scripts/generate_pngs.py data/tp iconruc/$RUN/tp tp data/grid/grid.nc
-          python scripts/generate_pngs.py data/dbz_cmax iconruc/$RUN/dbz_cmax dbz_cmax data/grid/grid.nc
-          python scripts/generate_pngs.py data/tp_acc iconruc/$RUN/tp_acc tp_acc data/grid/grid.nc
-
-      # 🧹 Grid-Datei & GRIBs löschen (Platz sparen)
-      - name: Clean up temporary data
-        run: |
-          echo "🧹 Entferne temporäre Dateien..."
-          rm -rf data/
-
-      - name: Upload PNGs as artifact (for debugging)
+      - name: Upload GRIB2 as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: iconruc
-          path: iconruc
+          name: grib2
+          path: data/
+
+      - name: Upload grid file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: grid
+          path: data/grid/
+
+# -------------------------------------------------------
+  # 2️⃣ Generate PNGs in parallel (matrix)
+  # -------------------------------------------------------
+  generate_pngs:
+    runs-on: ubuntu-latest
+    needs: fetch_and_generate
+    strategy:
+      matrix:
+        variable: [t2m, ww, tp_acc, tp, dbz_cmax]
+      max-parallel: 5
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download GRIB2 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: grib2
+          path: data/
+
+      - name: Download grid artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: grid
+          path: data/grid/
+
+      - name: Generate PNGs for ${{ matrix.variable }}
+        run: |
+          mkdir -p iconruc/${{ matrix.variable }}
+          python scripts/generate_pngs.py \
+            data/${{ matrix.variable }} \
+            iconruc/${{ matrix.variable }} \
+            ${{ matrix.variable }} \
+            data/grid/grid.nc
+
+      - name: Upload PNGs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iconruc-${{ matrix.variable }}
+          path: iconruc/${{ matrix.variable }}
+
 
 
   deploy_to_r2:
@@ -134,11 +170,22 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
 
-      - name: Download PNGs artifact
+      - name: Download all PNGs artifact
         uses: actions/download-artifact@v4
         with:
-          name: iconruc
-          path: ./iconruc
+          pattern: iconruc-*
+          path: iconruc_raw
+
+      - name: Merge PNG folders into one structure
+        run: |
+          mkdir -p iconruc/${{ needs.fetch_and_generate.outputs.run }}
+          for d in iconruc_raw/*; do
+            if [ -d "$d" ]; then
+              varname=$(basename "$d" | sed 's/^iconruc-//')  # entfernt "iconruc-" Prefix
+              mkdir -p iconruc/${{ needs.fetch_and_generate.outputs.run }}/"$varname"
+              cp -r "$d"/* iconruc/${{ needs.fetch_and_generate.outputs.run }}/"$varname"/ || true
+            fi
+          done
 
       - name: Generate Metadata
         run: |
