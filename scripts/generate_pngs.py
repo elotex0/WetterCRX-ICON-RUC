@@ -123,6 +123,17 @@ tp_acc_colors = ListedColormap([
 tp_acc_norm = mcolors.BoundaryNorm(tp_acc_bounds, tp_acc_colors.N)
 
 # ------------------------------
+# CAPE-Farben
+# ------------------------------
+cape_bounds = [0, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000]
+cape_colors = ListedColormap([
+    "#676767", "#006400", "#008000", "#00CC00", "#66FF00", "#FFFF00", 
+    "#FFCC00", "#FF9900", "#FF6600", "#FF3300", "#FF0000", "#FF0095", 
+    "#FC439F", "#FF88D3", "#FF99FF"
+])
+cape_norm = mcolors.BoundaryNorm(cape_bounds, cape_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -203,6 +214,11 @@ for filename in sorted(os.listdir(data_dir)):
         data = ds["tp"].values
         data[data<0.1]=np.nan
         cmap, norm = tp_acc_colors, tp_acc_norm
+    elif var_type == "cape_ml":
+        if "CAPE_ML" not in ds: continue
+        data = ds["CAPE_ML"].values
+        data[data<0]=np.nan
+        cmap, norm = cape_colors, cape_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
@@ -268,8 +284,8 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc"]:
-        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds if var_type=="dbz_cmax" else tp_acc_bounds
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml"]:
+        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds if var_type=="dbz_cmax" else tp_acc_bounds if var_type=="tp_acc" else cape_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -290,7 +306,8 @@ for filename in sorted(os.listdir(data_dir)):
         "t2m": "Temperatur 2m (°C)",
         "tp": "Niederschlag, 1Std (mm)",
         "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
-        "tp_acc": "Akkumulierter Niederschlag (mm)"
+        "tp_acc": "Akkumulierter Niederschlag (mm)",
+        "cape_ml": "CAPE-Index (J/kg)"
         
     }
 
