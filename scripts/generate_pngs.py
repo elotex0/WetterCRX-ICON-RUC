@@ -7,6 +7,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import pandas as pd
 import os
+from adjustText import adjust_text
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.patheffects as path_effects
@@ -275,12 +276,24 @@ for filename in sorted(os.listdir(data_dir)):
                 chosen_indices = valid_indices
             
             # Werte auf der Karte anzeigen
+            min_city_dist = 0.5
+            texts = []
             for idx in chosen_indices:
+                lon, lat = lons[idx], lats[idx]
+
+                # Prüfen, ob Punkt zu nah an einer Stadt ist
+                if any(np.hypot(lon - city_lon, lat - city_lat) < min_city_dist
+                    for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
+                    continue  # überspringen
+                
                 val = data[idx]
-                txt = ax.text(lons[idx], lats[idx], f"{val:.0f}", fontsize=8,
+                txt = ax.text(lon[idx], lat[idx], f"{val:.0f}", fontsize=8,
                             ha='center', va='center', color='black', weight='bold')
                 txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
-
+                texts.append(txt)
+            
+            # Labels automatisch verschieben, um Überlappungen zu vermeiden
+            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=dict(arrowstyle="-"))
 
     else:
     # WW-Farben
