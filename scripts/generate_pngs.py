@@ -287,7 +287,7 @@ for filename in sorted(os.listdir(data_dir)):
                     continue  # überspringen
                 
                 val = data[idx]
-                txt = ax.text(lon[idx], lat[idx], f"{val:.0f}", fontsize=8,
+                txt = ax.text(lon, lat, f"{val:.0f}", fontsize=8,
                             ha='center', va='center', color='black', weight='bold')
                 txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
                 texts.append(txt)
