@@ -12,7 +12,7 @@ import matplotlib.patches as mpatches
 import matplotlib.patheffects as path_effects
 from zoneinfo import ZoneInfo
 import numpy as np
-from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -70,18 +70,23 @@ ww_categories = {
     "Gewitter": [95,96],
 }
 
-t2m_bounds = list(range(-28, 41, 2))
-t2m_colors = [
-    "#C802CB", "#AA00A9", "#8800AA", "#6600AA", "#4400AB",
-    "#2201AA", "#0000CC", "#0033CC", "#0044CB", "#0055CC",
-    "#0066CB", "#0076CD", "#0088CC", "#0099CB", "#00A5CB",
-    "#00BB22", "#11C501", "#32D500", "#77D600", "#87DD00",
-    "#FFCC00", "#FFBB00", "#FFAA01", "#FE9900", "#FF8800",
-    "#FF6600", "#FF3300", "#FE0000", "#DC0000", "#BA0100",
-    "#91002B", "#980065", "#BB0099", "#EE01AB", "#FF21FE"
-]
-t2m_cmap = ListedColormap(t2m_colors)
-t2m_norm = BoundaryNorm(t2m_bounds, t2m_cmap.N)
+# ------------------------------
+# Temperatur-Farben
+# ------------------------------
+t2m_bounds = list(range(-36, 50, 2))
+t2m_colors = LinearSegmentedColormap.from_list(
+    "t2m_smoooth",
+    [
+    "#F675F4", "#F428E9", "#B117B5", "#950CA2", "#640180",
+    "#3E007F", "#00337E", "#005295", "#1292FF", "#49ACFF",
+    "#8FCDFF", "#B4DBFF", "#B9ECDD", "#88D4AD", "#07A125",
+    "#3FC107", "#9DE004", "#E7F700", "#F3CD0A", "#EE5505",
+    "#C81904", "#AF0E14", "#620001", "#C87879", "#FACACA",
+    "#E1E1E1", "#6D6D6D"
+    ],
+N=len(t2m_bounds)
+)
+t2m_norm = BoundaryNorm(t2m_bounds, ncolors=len(t2m_bounds))
 
 prec_bounds = [0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                12, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 125]
@@ -192,7 +197,7 @@ for filename in sorted(os.listdir(data_dir)):
     if var_type == "t2m":
         if "t2m" not in ds: continue
         data = ds["t2m"].values - 273.15
-        cmap, norm = t2m_cmap, t2m_norm
+        cmap, norm = t2m_colors, t2m_norm
     elif var_type == "tp":
         if "tprate" not in ds: continue
         data = ds["tprate"].values
@@ -252,6 +257,31 @@ for filename in sorted(os.listdir(data_dir)):
     # Scatter Plot (nur falls cmap vorhanden)
     if cmap is not None:
         im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+
+        if var_type == "t2m":
+            n_labels = 25  # Anzahl der Werte, die angezeigt werden sollen
+            
+            # Nur gültige Punkte innerhalb des Extents auswählen
+            lon_min, lon_max, lat_min, lat_max = extent
+            valid_mask = np.isfinite(data) & (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
+            
+            # Indizes der gültigen Punkte
+            valid_indices = np.where(valid_mask)[0]
+            
+            # Zufällig n_labels auswählen
+            if len(valid_indices) > n_labels:
+                chosen_indices = np.random.choice(valid_indices, n_labels, replace=False)
+            else:
+                chosen_indices = valid_indices
+            
+            # Werte auf der Karte anzeigen
+            for idx in chosen_indices:
+                val = data[idx]
+                txt = ax.text(lons[idx], lats[idx], f"{val:.0f}", fontsize=8,
+                            ha='center', va='center', color='black', weight='bold')
+                txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
+
+
     else:
     # WW-Farben
         valid_mask = np.isfinite(data)
@@ -291,6 +321,10 @@ for filename in sorted(os.listdir(data_dir)):
         cbar.ax.tick_params(colors="black", labelsize=7)
         cbar.outline.set_edgecolor("black")
         cbar.ax.set_facecolor("white")
+
+        if var_type == "t2m":
+            tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
+            cbar.set_ticklabels(tick_labels)
 
         if var_type=="tp":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
