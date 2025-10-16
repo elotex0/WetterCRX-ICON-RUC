@@ -276,7 +276,7 @@ for filename in sorted(os.listdir(data_dir)):
                 chosen_indices = valid_indices
             
             # Werte auf der Karte anzeigen
-            min_city_dist = 0.5
+            min_city_dist = 0.9
             texts = []
             for idx in chosen_indices:
                 lon, lat = lons[idx], lats[idx]
