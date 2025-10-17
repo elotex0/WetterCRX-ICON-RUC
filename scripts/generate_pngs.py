@@ -260,7 +260,7 @@ for filename in sorted(os.listdir(data_dir)):
         im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
 
         if var_type == "t2m":
-            n_labels = 25  # Anzahl der Werte, die angezeigt werden sollen
+            n_labels = 40  # Anzahl der Werte, die angezeigt werden sollen
             
             # Nur gültige Punkte innerhalb des Extents auswählen
             lon_min, lon_max, lat_min, lat_max = extent
@@ -269,22 +269,26 @@ for filename in sorted(os.listdir(data_dir)):
             # Indizes der gültigen Punkte
             valid_indices = np.where(valid_mask)[0]
             
-            # Zufällig n_labels auswählen
-            if len(valid_indices) > n_labels:
-                chosen_indices = np.random.choice(valid_indices, n_labels, replace=False)
-            else:
-                chosen_indices = valid_indices
-            
-            # Werte auf der Karte anzeigen
-            min_city_dist = 1.1
+            np.random.shuffle(valid_indices)
+            min_city_dist = 1.0
+            used_points = 0
+            tried_points = 0
             texts = []
-            for idx in chosen_indices:
-                lon, lat = lons[idx], lats[idx]
 
-                # Prüfen, ob Punkt zu nah an einer Stadt ist
-                if any(np.hypot(lon - city_lon, lat - city_lat) < min_city_dist
+            
+            # So lange versuchen, bis genug Labels gesetzt wurden oder keine Punkte mehr übrig sind
+            while used_points < n_labels and len(tried_points) < len(valid_indices):
+                idx = valid_indices[np.random.randint(0, len(valid_indices))]
+                if idx in tried_points:
+                    continue
+                tried_points.add(idx)
+        
+                lon_pt, lat_pt = lons[idx], lats[idx]
+        
+                # Prüfen, ob zu nah an einer Stadt
+                if any(np.hypot(lon_pt - city_lon, lat_pt - city_lat) < min_city_dist
                     for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
-                    continue  # überspringen
+                    continue  # neuen Punkt versuchen
                 
                 val = data[idx]
                 txt = ax.text(lon, lat, f"{val:.0f}", fontsize=8,
