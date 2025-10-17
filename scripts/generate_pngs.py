@@ -272,7 +272,7 @@ for filename in sorted(os.listdir(data_dir)):
             np.random.shuffle(valid_indices)
             min_city_dist = 1.0
             used_points = 0
-            tried_points = 0
+            tried_points = set ()
             texts = []
 
             
