@@ -14,6 +14,7 @@ import matplotlib.patheffects as path_effects
 from zoneinfo import ZoneInfo
 import numpy as np
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
+from scipy.interpolate import NearestNDInterpolator
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -62,13 +63,13 @@ ww_colors_base = {
     95: "#FF77FF", 96: "#C71585", 99: "#C71585"
 }
 ww_categories = {
-    "Bewölkung": [0, 1 , 2, 3],
+    "Bewölkung": [0, 1, 2, 3],
     "Nebel": [45],
     "Schneeregen": [56, 57],
     "Regen": [61, 63, 65],
     "gefr. Regen": [66, 67],
     "Schnee": [71, 73, 75],
-    "Gewitter": [95,96],
+    "Gewitter": [95, 96],
 }
 
 # ------------------------------
@@ -78,25 +79,25 @@ t2m_bounds = list(range(-36, 50, 2))
 t2m_colors = LinearSegmentedColormap.from_list(
     "t2m_smoooth",
     [
-    "#F675F4", "#F428E9", "#B117B5", "#950CA2", "#640180",
-    "#3E007F", "#00337E", "#005295", "#1292FF", "#49ACFF",
-    "#8FCDFF", "#B4DBFF", "#B9ECDD", "#88D4AD", "#07A125",
-    "#3FC107", "#9DE004", "#E7F700", "#F3CD0A", "#EE5505",
-    "#C81904", "#AF0E14", "#620001", "#C87879", "#FACACA",
-    "#E1E1E1", "#6D6D6D"
+        "#F675F4", "#F428E9", "#B117B5", "#950CA2", "#640180",
+        "#3E007F", "#00337E", "#005295", "#1292FF", "#49ACFF",
+        "#8FCDFF", "#B4DBFF", "#B9ECDD", "#88D4AD", "#07A125",
+        "#3FC107", "#9DE004", "#E7F700", "#F3CD0A", "#EE5505",
+        "#C81904", "#AF0E14", "#620001", "#C87879", "#FACACA",
+        "#E1E1E1", "#6D6D6D"
     ],
-N=len(t2m_bounds)
+    N=len(t2m_bounds)
 )
 t2m_norm = BoundaryNorm(t2m_bounds, ncolors=len(t2m_bounds))
 
 prec_bounds = [0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
                12, 14, 16, 20, 24, 30, 40, 50, 60, 80, 100, 125]
 prec_colors = ListedColormap([
-    "#B4D7FF","#75BAFF","#349AFF","#0582FF","#0069D2",
-    "#003680","#148F1B","#1ACF06","#64ED07","#FFF32B",
-    "#E9DC01","#F06000","#FF7F26","#FFA66A","#F94E78",
-    "#F71E53","#BE0000","#880000","#64007F","#C201FC",
-    "#DD66FE","#EBA6FF","#F9E7FF","#D4D4D4","#969696"
+    "#B4D7FF", "#75BAFF", "#349AFF", "#0582FF", "#0069D2",
+    "#003680", "#148F1B", "#1ACF06", "#64ED07", "#FFF32B",
+    "#E9DC01", "#F06000", "#FF7F26", "#FFA66A", "#F94E78",
+    "#F71E53", "#BE0000", "#880000", "#64007F", "#C201FC",
+    "#DD66FE", "#EBA6FF", "#F9E7FF", "#D4D4D4", "#969696"
 ])
 prec_norm = BoundaryNorm(prec_bounds, prec_colors.N)
 
@@ -120,11 +121,11 @@ dbz_norm = mcolors.BoundaryNorm(dbz_bounds, dbz_colors.N)
 tp_acc_bounds = [0.1, 1, 2, 3, 5, 7, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100,
                  125, 150, 175, 200, 250, 300, 400, 500]
 tp_acc_colors = ListedColormap([
-    "#B4D7FF","#75BAFF","#349AFF","#0582FF","#0069D2",
-    "#003680","#148F1B","#1ACF06","#64ED07","#FFF32B",
-    "#E9DC01","#F06000","#FF7F26","#FFA66A","#F94E78",
-    "#F71E53","#BE0000","#880000","#64007F","#C201FC",
-    "#DD66FE","#EBA6FF","#F9E7FF","#D4D4D4","#969696"
+    "#B4D7FF", "#75BAFF", "#349AFF", "#0582FF", "#0069D2",
+    "#003680", "#148F1B", "#1ACF06", "#64ED07", "#FFF32B",
+    "#E9DC01", "#F06000", "#FF7F26", "#FFA66A", "#F94E78",
+    "#F71E53", "#BE0000", "#880000", "#64007F", "#C201FC",
+    "#DD66FE", "#EBA6FF", "#F9E7FF", "#D4D4D4", "#969696"
 ])
 tp_acc_norm = mcolors.BoundaryNorm(tp_acc_bounds, tp_acc_colors.N)
 
@@ -133,8 +134,8 @@ tp_acc_norm = mcolors.BoundaryNorm(tp_acc_bounds, tp_acc_colors.N)
 # ------------------------------
 cape_bounds = [0, 20, 40, 60, 80, 100, 200, 400, 600, 800, 1000, 1500, 2000, 2500, 3000]
 cape_colors = ListedColormap([
-    "#676767", "#006400", "#008000", "#00CC00", "#66FF00", "#FFFF00", 
-    "#FFCC00", "#FF9900", "#FF6600", "#FF3300", "#FF0000", "#FF0095", 
+    "#676767", "#006400", "#008000", "#00CC00", "#66FF00", "#FFFF00",
+    "#FFCC00", "#FF9900", "#FF6600", "#FF3300", "#FF0000", "#FF0095",
     "#FC439F", "#FF88D3", "#FF99FF"
 ])
 cape_norm = mcolors.BoundaryNorm(cape_bounds, cape_colors.N)
@@ -149,7 +150,6 @@ TARGET_ASPECT = FIG_W_PX / TOP_AREA_PX
 
 # Bounding Box Deutschland (fix, keine GeoJSON nötig)
 extent = [5, 16, 47, 56]
-
 
 # ------------------------------
 # WW-Legende Funktion
@@ -177,10 +177,8 @@ def add_ww_legend_bottom(fig, ww_categories, ww_colors_base):
 # ICON Grid laden (einmal!)
 # ------------------------------
 nc = netCDF4.Dataset(gridfile)  # Datei öffnen
-
 lats = np.rad2deg(nc.variables["clat"][:])
 lons = np.rad2deg(nc.variables["clon"][:])
-
 nc.close()
 
 # ------------------------------
@@ -202,10 +200,11 @@ for filename in sorted(os.listdir(data_dir)):
     elif var_type == "tp":
         if "tprate" not in ds: continue
         data = ds["tprate"].values
-        data[data<0.1]=np.nan
+        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
         cmap, norm = prec_colors, prec_norm
+        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
     elif var_type == "ww":
-        varname = next((vn for vn in ds.data_vars if vn in ["WW","weather"]), None)
+        varname = next((vn for vn in ds.data_vars if vn in ["WW", "weather"]), None)
         if varname is None:
             print(f"Keine WW in {filename}")
             continue
@@ -218,18 +217,19 @@ for filename in sorted(os.listdir(data_dir)):
     elif var_type == "tp_acc":
         if "tp" not in ds: continue
         data = ds["tp"].values
-        data[data<0.1]=np.nan
+        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
         cmap, norm = tp_acc_colors, tp_acc_norm
+        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
     elif var_type == "cape_ml":
         if "CAPE_ML" not in ds: continue
         data = ds["CAPE_ML"].values
-        data[data<0]=np.nan
+        data[data < 0] = np.nan
         cmap, norm = cape_colors, cape_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
 
-    if data.ndim==3: data=data[0]
+    if data.ndim == 3: data = data[0]
 
     # --------------------------
     # Zeiten
@@ -255,59 +255,81 @@ for filename in sorted(os.listdir(data_dir)):
     ax.set_axis_off()
     ax.set_aspect('auto')
 
-    # Scatter Plot (nur falls cmap vorhanden)
+    # ------------------------------
+    # Regelmäßiges Gitter definieren
+    # ------------------------------
+    lon_min, lon_max, lat_min, lat_max = extent
+    res = 0.025  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
+    lon_grid = np.arange(lon_min, lon_max + res, res)
+    lat_grid = np.arange(lat_min, lat_max + res, res)
+    lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
+
+    # ------------------------------
+    # Interpolation auf regelmäßiges Gitter
+    # ------------------------------
+    points = np.column_stack((lons, lats))
+    valid_mask = np.isfinite(data)
+    points_valid = points[valid_mask]
+    data_valid = data[valid_mask]
+
+    # Nearest Neighbor Interpolation (schnell und ausreichend für viele Fälle)
+    interpolator = NearestNDInterpolator(points_valid, data_valid)
+    data_grid = interpolator(lon_grid, lat_grid)
+
+    # ------------------------------
+    # pcolormesh Plot
+    # ------------------------------
     if cmap is not None:
-        im = ax.scatter(lons, lats, c=data, s=2, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
-
+        # Für Variablen mit vorgegebener Farbkarte (t2m, tp, dbz_cmax, tp_acc, cape_ml)
+        im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
         if var_type == "t2m":
-            n_labels = 25  # Anzahl der Werte, die angezeigt werden sollen
-            
-            # Nur gültige Punkte innerhalb des Extents auswählen
+            contours = ax.contour(lon_grid, lat_grid, data_grid, levels=t2m_bounds, colors='black', linewidths=0.3, alpha=0.6)
+            n_labels = 40  # Anzahl der Werte, die angezeigt werden sollen
+            # Zufällige Punkte im Gitter für Labels auswählen
             lon_min, lon_max, lat_min, lat_max = extent
-            valid_mask = np.isfinite(data) & (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
-            
-            # Indizes der gültigen Punkte
-            valid_indices = np.where(valid_mask)[0]
-            
-            # Zufällig n_labels auswählen
-            if len(valid_indices) > n_labels:
-                chosen_indices = np.random.choice(valid_indices, n_labels, replace=False)
-            else:
-                chosen_indices = valid_indices
-            
-            # Werte auf der Karte anzeigen
-            min_city_dist = 1.1
-            texts = []
-            for idx in chosen_indices:
-                lon, lat = lons[idx], lats[idx]
 
-                # Prüfen, ob Punkt zu nah an einer Stadt ist
-                if any(np.hypot(lon - city_lon, lat - city_lat) < min_city_dist
-                    for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
-                    continue  # überspringen
-                
+            valid_mask = np.isfinite(data) & (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
+            valid_indices = np.flatnonzero(valid_mask)  # liefert 1D Indizes
+            np.random.shuffle(valid_indices)
+
+            min_city_dist = 1.0
+            texts = []
+            used_points = 0
+            tried_points = set()
+
+            while used_points < n_labels and len(tried_points) < len(valid_indices):
+                idx = valid_indices[np.random.randint(0, len(valid_indices))]
+                if idx in tried_points:
+                    continue
+                tried_points.add(idx)
+
+                lon_pt, lat_pt = lons[idx], lats[idx]
                 val = data[idx]
-                txt = ax.text(lon, lat, f"{val:.0f}", fontsize=8,
-                            ha='center', va='center', color='black', weight='bold')
+
+                # Prüfen, ob zu nah an einer Stadt
+                if any(np.hypot(lon_pt - city_lon, lat_pt - city_lat) < min_city_dist
+                    for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
+                    continue
+
+                txt = ax.text(lon_pt, lat_pt, f"{val:.0f}", fontsize=10,
+                            ha='center', va='center', color='black', weight='bold', fontfamily='Arial')
                 txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
                 texts.append(txt)
-            
-            # Labels automatisch verschieben, um Überlappungen zu vermeiden
-            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=dict(arrowstyle="-"))
+                used_points += 1
 
+            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=dict(arrowstyle="-"))
     else:
-    # WW-Farben
+        # WW-Farben
         valid_mask = np.isfinite(data)
         codes = np.unique(data[valid_mask]).astype(int)
         codes = [c for c in codes if c in ww_colors_base]
         codes.sort()
         cmap = ListedColormap([ww_colors_base[c] for c in codes])
         code2idx = {c: i for i, c in enumerate(codes)}
-        idx_data = np.full_like(data, fill_value=np.nan, dtype=float)
+        idx_data = np.full_like(data_grid, fill_value=np.nan, dtype=float)
         for c, i in code2idx.items():
-            idx_data[data == c] = i
-        im = ax.scatter(lons, lats, c=idx_data, s=2, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
-
+            idx_data[data_grid == c] = i
+        im = ax.pcolormesh(lon_grid, lat_grid, idx_data, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
 
     # Bundesländer-Grenzen aus Cartopy (statt GeoJSON)
     ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
@@ -328,7 +350,7 @@ for filename in sorted(os.listdir(data_dir)):
     legend_h_px = 50
     legend_bottom_px = 45
     if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml"]:
-        bounds = t2m_bounds if var_type=="t2m" else prec_bounds if var_type=="tp" else dbz_bounds if var_type=="dbz_cmax" else tp_acc_bounds if var_type=="tp_acc" else cape_bounds
+        bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -339,7 +361,7 @@ for filename in sorted(os.listdir(data_dir)):
             tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
             cbar.set_ticklabels(tick_labels)
 
-        if var_type=="tp":
+        if var_type == "tp":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
     else:
         add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
@@ -355,7 +377,6 @@ for filename in sorted(os.listdir(data_dir)):
         "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
         "tp_acc": "Akkumulierter Niederschlag (mm)",
         "cape_ml": "CAPE-Index (J/kg)"
-        
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
