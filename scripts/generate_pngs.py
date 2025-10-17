@@ -317,7 +317,7 @@ for filename in sorted(os.listdir(data_dir)):
                 texts.append(txt)
                 used_points += 1
 
-            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=dict(arrowstyle="-"))
+            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=None)
     else:
         # WW-Farben
         valid_mask = np.isfinite(data)
