@@ -311,8 +311,8 @@ for filename in sorted(os.listdir(data_dir)):
                     for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
                     continue
 
-                txt = ax.text(lon_pt, lat_pt, f"{val:.0f}", fontsize=10,
-                            ha='center', va='center', color='black', weight='bold', fontfamily='Arial')
+                txt = ax.text(lon_pt, lat_pt, f"{val:.0f}", fontsize=9,
+                            ha='center', va='center', color='black')
                 txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
                 texts.append(txt)
                 used_points += 1
