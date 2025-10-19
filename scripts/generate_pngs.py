@@ -320,8 +320,7 @@ for filename in sorted(os.listdir(data_dir)):
 
             adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=None)
         if var_type == "dbz_cmax":
-            smoothed_grid = gaussian_filter(data_grid, sigma=1.2)
-            im = ax.pcolormesh(lon_grid, lat_grid, smoothed_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+            im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
     else:
         # WW-Farben
         valid_mask = np.isfinite(data)
