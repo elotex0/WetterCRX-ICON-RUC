@@ -12,6 +12,7 @@ import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.patheffects as path_effects
 from zoneinfo import ZoneInfo
+from scipy.ndimage import gaussian_filter
 import numpy as np
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 from scipy.interpolate import NearestNDInterpolator
@@ -318,6 +319,9 @@ for filename in sorted(os.listdir(data_dir)):
                 used_points += 1
 
             adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=None)
+        if var_type == "dbz_cmax":
+            smoothed_grid = gaussian_filter(data_grid, sigma=1.2)
+            im = ax.pcolormesh(lon_grid, lat_grid, smoothed_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
     else:
         # WW-Farben
         valid_mask = np.isfinite(data)
