@@ -13,6 +13,7 @@ import matplotlib.patches as mpatches
 import matplotlib.patheffects as path_effects
 from zoneinfo import ZoneInfo
 import numpy as np
+from scipy.ndimage import gaussian_filter
 from matplotlib.colors import ListedColormap, BoundaryNorm, LinearSegmentedColormap
 from scipy.interpolate import NearestNDInterpolator
 import warnings
