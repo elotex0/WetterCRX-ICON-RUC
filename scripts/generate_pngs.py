@@ -259,7 +259,7 @@ for filename in sorted(os.listdir(data_dir)):
     # Regelmäßiges Gitter definieren
     # ------------------------------
     lon_min, lon_max, lat_min, lat_max = extent
-    res = 0.025  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
+    res = 0.015  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
     lon_grid = np.arange(lon_min, lon_max + res, res)
     lat_grid = np.arange(lat_min, lat_max + res, res)
     lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
@@ -319,7 +319,8 @@ for filename in sorted(os.listdir(data_dir)):
 
             adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=None)
         if var_type == "dbz_cmax":
-            im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+            data_smooth = gaussian_filter (data_grid, sigma = 0.8)
+            im = ax.pcolormesh(lon_grid, lat_grid, data_smooth, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
     else:
         # WW-Farben
         valid_mask = np.isfinite(data)
