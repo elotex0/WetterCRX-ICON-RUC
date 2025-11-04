@@ -284,42 +284,6 @@ for filename in sorted(os.listdir(data_dir)):
     if cmap is not None:
         # Für Variablen mit vorgegebener Farbkarte (t2m, tp, dbz_cmax, tp_acc, cape_ml)
         im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
-        if var_type == "t2m":
-            contours = ax.contour(lon_grid, lat_grid, data_grid, levels=t2m_bounds, colors='black', linewidths=0.3, alpha=0.6)
-            n_labels = 40  # Anzahl der Werte, die angezeigt werden sollen
-            # Zufällige Punkte im Gitter für Labels auswählen
-            lon_min, lon_max, lat_min, lat_max = extent
-
-            valid_mask = np.isfinite(data) & (lons >= lon_min) & (lons <= lon_max) & (lats >= lat_min) & (lats <= lat_max)
-            valid_indices = np.flatnonzero(valid_mask)  # liefert 1D Indizes
-            np.random.shuffle(valid_indices)
-
-            min_city_dist = 1.0
-            texts = []
-            used_points = 0
-            tried_points = set()
-
-            while used_points < n_labels and len(tried_points) < len(valid_indices):
-                idx = valid_indices[np.random.randint(0, len(valid_indices))]
-                if idx in tried_points:
-                    continue
-                tried_points.add(idx)
-
-                lon_pt, lat_pt = lons[idx], lats[idx]
-                val = data[idx]
-
-                # Prüfen, ob zu nah an einer Stadt
-                if any(np.hypot(lon_pt - city_lon, lat_pt - city_lat) < min_city_dist
-                    for city_lon, city_lat in zip(cities['lon'], cities['lat'])):
-                    continue
-
-                txt = ax.text(lon_pt, lat_pt, f"{val:.0f}", fontsize=9,
-                            ha='center', va='center', color='black')
-                txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
-                texts.append(txt)
-                used_points += 1
-
-            adjust_text(texts, ax=ax, expand_text=(1.2, 1.2), arrowprops=None)
         if var_type == "dbz_cmax":
             data_smooth = gaussian_filter (data_grid, sigma = 0.8)
             im = ax.pcolormesh(lon_grid, lat_grid, data_smooth, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
