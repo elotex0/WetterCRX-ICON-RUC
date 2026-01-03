@@ -143,6 +143,30 @@ cape_colors = ListedColormap([
 cape_norm = mcolors.BoundaryNorm(cape_bounds, cape_colors.N)
 
 # ------------------------------
+# Schneewahrscheinlichkeit 
+# ------------------------------
+snowprob_bounds = [1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99]
+snowprob_colors = ListedColormap([
+    "#FE9226", "#FFC02B", "#FFEE32", "#DDE02D", "#BBD629",
+    "#9AC925", "#79BC21", "#37A319", "#367C40",
+    "#366754", "#4A3E7C", "#593192"
+])
+
+snowprob_norm = mcolors.BoundaryNorm(snowprob_bounds, snowprob_colors.N)
+
+#-------------------------------
+# Schneehöhen-Farben
+#------------------------------
+snow_bounds = [0, 0.1, 0.5, 1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 250, 300, 400]  # in cm
+snow_colors = ListedColormap([
+        "#F8F8F8", "#DCDBFA", "#AAA9C8", "#75BAFF", "#349AFF", "#0582FF",
+        "#0069D2", "#004F9C", "#01327F", "#4B007F", "#64007F", "#9101BB",
+        "#C300FC", "#D235FF", "#EBA6FF", "#F4CEFF", "#FAB2CA", "#FF9798",
+        "#FE6E6E", "#DF093F", "#BE0000", "#A40000", "#880000", "#460000"
+    ])
+snow_norm = mcolors.BoundaryNorm(snow_bounds, snow_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -183,55 +207,126 @@ lats = np.rad2deg(nc.variables["clat"][:])
 lons = np.rad2deg(nc.variables["clon"][:])
 nc.close()
 
+
+# ------------------------------
+# Dateien pro Step sammeln
+# ------------------------------
+import re
+step_files = {}
+for filename in os.listdir(data_dir):
+    if filename.endswith(".grib2"):
+        m = re.search(r"snow_(PT\d+H\d+M)_M(\d+)", filename)
+        if m:
+            step = m.group(1)
+            member = int(m.group(2))
+            step_files.setdefault(step, []).append((member, os.path.join(data_dir, filename)))
+
+# Sortiere die Steps numerisch
+def step_key(step_str):
+    # PT000H00M → 0, PT014H00M → 14
+    m = re.match(r"PT(\d+)H", step_str)
+    return int(m.group(1)) if m else 0
+
+# ------------------------------
+# Schrittweise alle Member laden und auswerten (snow1cm/snow2cm)
+# ------------------------------
+for step, member_files in sorted(step_files.items(), key=lambda x: step_key(x[0])):
+    # Member nach Nummer sortieren
+    files = [f for _, f in sorted(member_files, key=lambda x: x[0])]
+
+    if var_type in ["snow1cm", "snow2cm"]:
+        threshold = 1 if var_type == "snow1cm" else 2
+
+        # Erstes File nur für Zeitinformationen
+        first_ds = cfgrib.open_dataset(files[0])
+        run_time_utc = pd.to_datetime(first_ds["time"].values) if "time" in first_ds else None
+        if "valid_time" in first_ds:
+            valid_time_raw = first_ds["valid_time"].values
+            valid_time_utc = pd.to_datetime(valid_time_raw[0]) if np.ndim(valid_time_raw) > 0 else pd.to_datetime(valid_time_raw)
+        else:
+            step_td = pd.to_timedelta(first_ds["step"].values[0])
+            valid_time_utc = run_time_utc + step_td
+
+        # Alle Members sammeln
+        snow_list = []
+        for path in files:
+            ds = cfgrib.open_dataset(path)
+            if "sde" not in ds:
+                continue
+            snow_m = ds["sde"].values * 100  # in cm umrechnen
+            snow_list.append(snow_m)
+            cmap, norm = snowprob_colors, snowprob_norm
+
+        if len(snow_list) == 0:
+            continue
+
+        # In ein 2D-Array stapeln (Members x Grid-Punkte)
+        snow_all = np.stack(snow_list, axis=0)
+
+        # Wahrscheinlichkeit berechnen
+        data = np.sum(snow_all >= threshold, axis=0) / snow_all.shape[0] * 100
+
+        print(f"Step {step}: {snow_all.shape[0]} Ensemble-Member ausgewertet (≥{threshold}cm)")
+
+        # Lokale Zeit
+        valid_time_local = valid_time_utc.tz_localize("UTC").tz_convert(ZoneInfo("Europe/Berlin"))
+
+
+
 # ------------------------------
 # Dateien durchgehen
 # ------------------------------
-for filename in sorted(os.listdir(data_dir)):
-    if not filename.endswith(".grib2"):
-        continue
-    path = os.path.join(data_dir, filename)
-    ds = cfgrib.open_dataset(path)
-
-    # --------------------------
-    # Daten je Typ
-    # --------------------------
-    if var_type == "t2m":
-        if "t2m" not in ds: continue
-        data = ds["t2m"].values - 273.15
-        cmap, norm = t2m_colors, t2m_norm
-    elif var_type == "tp":
-        if "tprate" not in ds: continue
-        data = ds["tprate"].values
-        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
-        cmap, norm = prec_colors, prec_norm
-        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
-    elif var_type == "ww":
-        varname = next((vn for vn in ds.data_vars if vn in ["WW", "weather"]), None)
-        if varname is None:
-            print(f"Keine WW in {filename}")
+else:
+    for filename in sorted(os.listdir(data_dir)):
+        if not filename.endswith(".grib2"):
             continue
-        data = ds[varname].values
-        cmap = None
-    elif var_type == "dbz_cmax":
-        if "DBZ_CMAX" not in ds: continue
-        data = ds["DBZ_CMAX"].values
-        cmap, norm = dbz_colors, dbz_norm
-    elif var_type == "tp_acc":
-        if "tp" not in ds: continue
-        data = ds["tp"].values
-        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
-        cmap, norm = tp_acc_colors, tp_acc_norm
-        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
-    elif var_type == "cape_ml":
-        if "CAPE_ML" not in ds: continue
-        data = ds["CAPE_ML"].values
-        data[data < 0] = np.nan
-        cmap, norm = cape_colors, cape_norm
-    else:
-        print(f"Var_type {var_type} nicht implementiert")
-        continue
+        path = os.path.join(data_dir, filename)
+        ds = cfgrib.open_dataset(path)
 
-    if data.ndim == 3: data = data[0]
+            # --------------------------
+            # Daten je Typ
+            # --------------------------
+        if var_type == "t2m":
+            if "t2m" not in ds: continue
+            data = ds["t2m"].values - 273.15
+            cmap, norm = t2m_colors, t2m_norm
+        elif var_type == "tp":
+            if "tprate" not in ds: continue
+            data = ds["tprate"].values
+            data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
+            cmap, norm = prec_colors, prec_norm
+            cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
+        elif var_type == "ww":
+            varname = next((vn for vn in ds.data_vars if vn in ["WW", "weather"]), None)
+            if varname is None:
+                print(f"Keine WW in {filename}")
+                continue
+            data = ds[varname].values
+            cmap = None
+        elif var_type == "dbz_cmax":
+            if "DBZ_CMAX" not in ds: continue
+            data = ds["DBZ_CMAX"].values
+            cmap, norm = dbz_colors, dbz_norm
+        elif var_type == "tp_acc":
+            if "tp" not in ds: continue
+            data = ds["tp"].values
+            data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
+            cmap, norm = tp_acc_colors, tp_acc_norm
+            cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
+        elif var_type == "cape_ml":
+            if "CAPE_ML" not in ds: continue
+            data = ds["CAPE_ML"].values
+            data[data < 0] = np.nan
+            cmap, norm = cape_colors, cape_norm
+        elif var_type == "snow":
+            if "sde" not in ds: continue
+            data = ds["sde"].values * 100  # in cm umrechnen
+            cmap, norm = snow_colors, snow_norm
+        else:
+            print(f"Var_type {var_type} nicht implementiert")
+            continue
+
+        if data.ndim == 3: data = data[0]
 
     # --------------------------
     # Zeiten
@@ -318,8 +413,8 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml"]:
-        bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow1cm", "snow2cm", "snow"]:
+        bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds if var_type == "cape_ml" else snowprob_bounds if var_type == "snow1cm" else snowprob_bounds if var_type == "snow2cm" else snow_bounds
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -329,6 +424,8 @@ for filename in sorted(os.listdir(data_dir)):
         if var_type == "t2m":
             tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
             cbar.set_ticklabels(tick_labels)
+        if var_type=="snow":
+            cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in snow_bounds])
 
         if var_type == "tp":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
@@ -345,7 +442,10 @@ for filename in sorted(os.listdir(data_dir)):
         "tp": "Niederschlag, 1Std (mm)",
         "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
         "tp_acc": "Akkumulierter Niederschlag (mm)",
-        "cape_ml": "CAPE-Index (J/kg)"
+        "cape_ml": "CAPE-Index (J/kg)",
+        "snow1cm": "Schneehöhe ≥ 1 cm (%)",
+        "snow2cm": "Schneehöhe ≥ 2 cm (%)",
+        "snow": "Schneehöhe (cm)"
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
