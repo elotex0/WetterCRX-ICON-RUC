@@ -109,6 +109,15 @@ jobs:
             URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/CAPE_ML/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
             wget -q -O cape_ml_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
+      - name: Download snow_depth GRIB2 files
+        run: |
+          mkdir -p data/snow
+          cd data/snow
+          seq 0 13 | xargs -n 1 -P 4 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/H_SNOW/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O snow_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
 
       - name: Upload GRIB2 as artifact
         uses: actions/upload-artifact@v4
@@ -130,8 +139,8 @@ jobs:
     needs: fetch_and_generate
     strategy:
       matrix:
-        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml]
-      max-parallel: 6
+        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, snow]
+      max-parallel: 7
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
