@@ -230,11 +230,12 @@ def step_key(step_str):
 # ------------------------------
 # Schrittweise alle Member laden und auswerten (snow1cm/snow2cm)
 # ------------------------------
-for step, member_files in sorted(step_files.items(), key=lambda x: step_key(x[0])):
-    # Member nach Nummer sortieren
-    files = [f for _, f in sorted(member_files, key=lambda x: x[0])]
+if var_type in ["snow1cm", "snow2cm"]:
+    for step, member_files in sorted(step_files.items(), key=lambda x: step_key(x[0])):
+        # Member nach Nummer sortieren
+        files = [f for _, f in sorted(member_files, key=lambda x: x[0])]
 
-    if var_type in ["snow1cm", "snow2cm"]:
+        
         threshold = 1 if var_type == "snow1cm" else 2
 
         # Erstes File nur für Zeitinformationen
@@ -271,8 +272,156 @@ for step, member_files in sorted(step_files.items(), key=lambda x: step_key(x[0]
         # Lokale Zeit
         valid_time_local = valid_time_utc.tz_localize("UTC").tz_convert(ZoneInfo("Europe/Berlin"))
 
+        # ==============================
+        # PLOT snow1cm / snow2cm
+        # ==============================
+        # ==============================
+        # Figure
+        # ==============================
+        scale = 0.9
+        fig = plt.figure(figsize=(FIG_W_PX/100*scale, FIG_H_PX/100*scale), dpi=100)
+        shift_up = 0.02
+        ax = fig.add_axes(
+            [0.0, BOTTOM_AREA_PX/FIG_H_PX + shift_up, 1.0, TOP_AREA_PX/FIG_H_PX],
+            projection=ccrs.PlateCarree()
+        )
+        ax.set_extent(extent)
+        ax.set_axis_off()
+        ax.set_aspect('auto')
 
+        # ==============================
+        # Regelmäßiges Gitter
+        # ==============================
+        lon_min, lon_max, lat_min, lat_max = extent
+        res = 0.015
+        lon_grid = np.arange(lon_min, lon_max + res, res)
+        lat_grid = np.arange(lat_min, lat_max + res, res)
+        lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
 
+        # ==============================
+        # Interpolation (Nearest)
+        # ==============================
+        points = np.column_stack((lons, lats))
+        valid_mask = np.isfinite(data)
+        points_valid = points[valid_mask]
+        data_valid = data[valid_mask]
+
+        interpolator = NearestNDInterpolator(points_valid, data_valid)
+        data_grid = interpolator(lon_grid, lat_grid)
+
+        # ==============================
+        # Plot
+        # ==============================
+        im = ax.pcolormesh(
+            lon_grid, lat_grid, data_grid,
+            cmap=snowprob_colors,
+            norm=snowprob_norm,
+            transform=ccrs.PlateCarree()
+        )
+
+        # Bundesländer, Grenzen
+        ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
+        ax.add_feature(cfeature.BORDERS, linestyle=":")
+        ax.add_feature(cfeature.COASTLINE)
+
+        # Städte
+        for _, city in cities.iterrows():
+            ax.plot(
+                city["lon"], city["lat"], "o",
+                markersize=6, markerfacecolor="black",
+                markeredgecolor="white", markeredgewidth=1.5, zorder=5
+            )
+            txt = ax.text(
+                city["lon"] + 0.1, city["lat"] + 0.1, city["name"],
+                fontsize=9, color="black", weight="bold", zorder=6
+            )
+            txt.set_path_effects([
+                path_effects.withStroke(linewidth=1.5, foreground="white")
+            ])
+
+        ax.add_patch(
+            mpatches.Rectangle(
+                (0, 0), 1, 1,
+                transform=ax.transAxes,
+                fill=False, color="black", linewidth=2
+            )
+        )
+
+        # ==============================
+        # Colorbar
+        # ==============================
+        legend_h_px = 50
+        legend_bottom_px = 45
+
+        cbar_ax = fig.add_axes([
+            0.03,
+            legend_bottom_px / FIG_H_PX,
+            0.94,
+            legend_h_px / FIG_H_PX
+        ])
+
+        cbar = fig.colorbar(
+            im, cax=cbar_ax,
+            orientation="horizontal",
+            ticks=snowprob_bounds
+        )
+
+        cbar.ax.tick_params(labelsize=7)
+        cbar.outline.set_edgecolor("black")
+        cbar.ax.set_facecolor("white")
+
+        # ==============================
+        # Footer
+        # ==============================
+        footer_ax = fig.add_axes([
+            0.0,
+            (legend_bottom_px + legend_h_px) / FIG_H_PX,
+            1.0,
+            (BOTTOM_AREA_PX - legend_h_px - legend_bottom_px) / FIG_H_PX
+        ])
+        footer_ax.axis("off")
+
+        footer_title = (
+            "Schneehöhe ≥ 1 cm (%)"
+            if var_type == "snow1cm"
+            else "Schneehöhe ≥ 2 cm (%)"
+        )
+
+        left_text = (
+            f"{footer_title}\n"
+            f"ICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst"
+        )
+
+        footer_ax.text(
+            0.01, 0.85, left_text,
+            fontsize=12, fontweight="bold",
+            va="top", ha="left"
+        )
+
+        footer_ax.text(
+            0.734, 0.92, "Prognose für:",
+            fontsize=12, va="top",
+            ha="left", fontweight="bold"
+        )
+
+        footer_ax.text(
+            0.99, 0.68,
+            f"{valid_time_local:%d.%m.%Y %H:%M} Uhr",
+            fontsize=12, va="top",
+            ha="right", fontweight="bold"
+        )
+
+        # ==============================
+        # Speichern
+        # ==============================
+        outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.png"
+        plt.savefig(
+            os.path.join(output_dir, outname),
+            dpi=100, bbox_inches=None, pad_inches=0
+        )
+        plt.close()
+
+    
 # ------------------------------
 # Dateien durchgehen
 # ------------------------------
@@ -328,137 +477,137 @@ else:
 
         if data.ndim == 3: data = data[0]
 
-    # --------------------------
-    # Zeiten
-    # --------------------------
-    run_time_utc = pd.to_datetime(ds["time"].values) if "time" in ds else None
-    if "valid_time" in ds:
-        valid_time_raw = ds["valid_time"].values
-        valid_time_utc = pd.to_datetime(valid_time_raw[0]) if np.ndim(valid_time_raw) > 0 else pd.to_datetime(valid_time_raw)
-    else:
-        step = pd.to_timedelta(ds["step"].values[0])
-        valid_time_utc = run_time_utc + step
-    valid_time_local = valid_time_utc.tz_localize("UTC").astimezone(ZoneInfo("Europe/Berlin"))
+        # --------------------------
+        # Zeiten
+        # --------------------------
+        run_time_utc = pd.to_datetime(ds["time"].values) if "time" in ds else None
+        if "valid_time" in ds:
+            valid_time_raw = ds["valid_time"].values
+            valid_time_utc = pd.to_datetime(valid_time_raw[0]) if np.ndim(valid_time_raw) > 0 else pd.to_datetime(valid_time_raw)
+        else:
+            step = pd.to_timedelta(ds["step"].values[0])
+            valid_time_utc = run_time_utc + step
+        valid_time_local = valid_time_utc.tz_localize("UTC").astimezone(ZoneInfo("Europe/Berlin"))
 
-    # --------------------------
-    # Figure
-    # --------------------------
-    scale = 0.9
-    fig = plt.figure(figsize=(FIG_W_PX/100*scale, FIG_H_PX/100*scale), dpi=100)
-    shift_up = 0.02
-    ax = fig.add_axes([0.0, BOTTOM_AREA_PX/FIG_H_PX + shift_up, 1.0, TOP_AREA_PX/FIG_H_PX],
-                      projection=ccrs.PlateCarree())
-    ax.set_extent(extent)
-    ax.set_axis_off()
-    ax.set_aspect('auto')
+        # --------------------------
+        # Figure
+        # --------------------------
+        scale = 0.9
+        fig = plt.figure(figsize=(FIG_W_PX/100*scale, FIG_H_PX/100*scale), dpi=100)
+        shift_up = 0.02
+        ax = fig.add_axes([0.0, BOTTOM_AREA_PX/FIG_H_PX + shift_up, 1.0, TOP_AREA_PX/FIG_H_PX],
+                        projection=ccrs.PlateCarree())
+        ax.set_extent(extent)
+        ax.set_axis_off()
+        ax.set_aspect('auto')
 
-    # ------------------------------
-    # Regelmäßiges Gitter definieren
-    # ------------------------------
-    lon_min, lon_max, lat_min, lat_max = extent
-    res = 0.015  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
-    lon_grid = np.arange(lon_min, lon_max + res, res)
-    lat_grid = np.arange(lat_min, lat_max + res, res)
-    lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
+        # ------------------------------
+        # Regelmäßiges Gitter definieren
+        # ------------------------------
+        lon_min, lon_max, lat_min, lat_max = extent
+        res = 0.015  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
+        lon_grid = np.arange(lon_min, lon_max + res, res)
+        lat_grid = np.arange(lat_min, lat_max + res, res)
+        lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
 
-    # ------------------------------
-    # Interpolation auf regelmäßiges Gitter
-    # ------------------------------
-    points = np.column_stack((lons, lats))
-    valid_mask = np.isfinite(data)
-    points_valid = points[valid_mask]
-    data_valid = data[valid_mask]
-
-    # Nearest Neighbor Interpolation (schnell und ausreichend für viele Fälle)
-    interpolator = NearestNDInterpolator(points_valid, data_valid)
-    data_grid = interpolator(lon_grid, lat_grid)
-
-    # ------------------------------
-    # pcolormesh Plot
-    # ------------------------------
-    if cmap is not None:
-        # Für Variablen mit vorgegebener Farbkarte (t2m, tp, dbz_cmax, tp_acc, cape_ml)
-        im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
-        if var_type == "dbz_cmax":
-            data_smooth = gaussian_filter (data_grid, sigma = 0.8)
-            im = ax.pcolormesh(lon_grid, lat_grid, data_smooth, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
-    else:
-        # WW-Farben
+        # ------------------------------
+        # Interpolation auf regelmäßiges Gitter
+        # ------------------------------
+        points = np.column_stack((lons, lats))
         valid_mask = np.isfinite(data)
-        codes = np.unique(data[valid_mask]).astype(int)
-        codes = [c for c in codes if c in ww_colors_base]
-        codes.sort()
-        cmap = ListedColormap([ww_colors_base[c] for c in codes])
-        code2idx = {c: i for i, c in enumerate(codes)}
-        idx_data = np.full_like(data_grid, fill_value=np.nan, dtype=float)
-        for c, i in code2idx.items():
-            idx_data[data_grid == c] = i
-        im = ax.pcolormesh(lon_grid, lat_grid, idx_data, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
+        points_valid = points[valid_mask]
+        data_valid = data[valid_mask]
 
-    # Bundesländer-Grenzen aus Cartopy (statt GeoJSON)
-    ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
+        # Nearest Neighbor Interpolation (schnell und ausreichend für viele Fälle)
+        interpolator = NearestNDInterpolator(points_valid, data_valid)
+        data_grid = interpolator(lon_grid, lat_grid)
 
-    for _, city in cities.iterrows():
-        ax.plot(city["lon"], city["lat"], "o", markersize=6, markerfacecolor="black",
-                markeredgecolor="white", markeredgewidth=1.5, zorder=5)
-        txt = ax.text(city["lon"]+0.1, city["lat"]+0.1, city["name"],
-                      fontsize=9, color="black", weight="bold", zorder=6)
-        txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
-    ax.add_feature(cfeature.BORDERS, linestyle=":")
-    ax.add_feature(cfeature.COASTLINE)
-    ax.add_patch(mpatches.Rectangle((0,0),1,1, transform=ax.transAxes, fill=False, color="black", linewidth=2))
+        # ------------------------------
+        # pcolormesh Plot
+        # ------------------------------
+        if cmap is not None:
+            # Für Variablen mit vorgegebener Farbkarte (t2m, tp, dbz_cmax, tp_acc, cape_ml)
+            im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+            if var_type == "dbz_cmax":
+                data_smooth = gaussian_filter (data_grid, sigma = 0.8)
+                im = ax.pcolormesh(lon_grid, lat_grid, data_smooth, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
+        else:
+            # WW-Farben
+            valid_mask = np.isfinite(data)
+            codes = np.unique(data[valid_mask]).astype(int)
+            codes = [c for c in codes if c in ww_colors_base]
+            codes.sort()
+            cmap = ListedColormap([ww_colors_base[c] for c in codes])
+            code2idx = {c: i for i, c in enumerate(codes)}
+            idx_data = np.full_like(data_grid, fill_value=np.nan, dtype=float)
+            for c, i in code2idx.items():
+                idx_data[data_grid == c] = i
+            im = ax.pcolormesh(lon_grid, lat_grid, idx_data, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
 
-    # --------------------------
-    # Colorbar (falls relevant)
-    # --------------------------
-    legend_h_px = 50
-    legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow1cm", "snow2cm", "snow"]:
-        bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds if var_type == "cape_ml" else snowprob_bounds if var_type == "snow1cm" else snowprob_bounds if var_type == "snow2cm" else snow_bounds
-        cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
-        cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
-        cbar.ax.tick_params(colors="black", labelsize=7)
-        cbar.outline.set_edgecolor("black")
-        cbar.ax.set_facecolor("white")
+        # Bundesländer-Grenzen aus Cartopy (statt GeoJSON)
+        ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
 
-        if var_type == "t2m":
-            tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
-            cbar.set_ticklabels(tick_labels)
-        if var_type=="snow":
-            cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in snow_bounds])
+        for _, city in cities.iterrows():
+            ax.plot(city["lon"], city["lat"], "o", markersize=6, markerfacecolor="black",
+                    markeredgecolor="white", markeredgewidth=1.5, zorder=5)
+            txt = ax.text(city["lon"]+0.1, city["lat"]+0.1, city["name"],
+                        fontsize=9, color="black", weight="bold", zorder=6)
+            txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
+        ax.add_feature(cfeature.BORDERS, linestyle=":")
+        ax.add_feature(cfeature.COASTLINE)
+        ax.add_patch(mpatches.Rectangle((0,0),1,1, transform=ax.transAxes, fill=False, color="black", linewidth=2))
 
-        if var_type == "tp":
-            cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
-    else:
-        add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
+        # --------------------------
+        # Colorbar (falls relevant)
+        # --------------------------
+        legend_h_px = 50
+        legend_bottom_px = 45
+        if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow1cm", "snow2cm", "snow"]:
+            bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds if var_type == "cape_ml" else snowprob_bounds if var_type == "snow1cm" else snowprob_bounds if var_type == "snow2cm" else snow_bounds
+            cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
+            cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
+            cbar.ax.tick_params(colors="black", labelsize=7)
+            cbar.outline.set_edgecolor("black")
+            cbar.ax.set_facecolor("white")
 
-    # Footer
-    footer_ax = fig.add_axes([0.0, (legend_bottom_px + legend_h_px)/FIG_H_PX, 1.0,
-                              (BOTTOM_AREA_PX - legend_h_px - legend_bottom_px)/FIG_H_PX])
-    footer_ax.axis("off")
-    footer_texts = {
-        "ww": "Signifikantes Wetter",
-        "t2m": "Temperatur 2m (°C)",
-        "tp": "Niederschlag, 1Std (mm)",
-        "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
-        "tp_acc": "Akkumulierter Niederschlag (mm)",
-        "cape_ml": "CAPE-Index (J/kg)",
-        "snow1cm": "Schneehöhe ≥ 1 cm (%)",
-        "snow2cm": "Schneehöhe ≥ 2 cm (%)",
-        "snow": "Schneehöhe (cm)"
-    }
+            if var_type == "t2m":
+                tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
+                cbar.set_ticklabels(tick_labels)
+            if var_type=="snow":
+                cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in snow_bounds])
 
-    left_text = footer_texts.get(var_type, var_type) + \
-                f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst" \
-                if run_time_utc is not None else \
-                footer_texts.get(var_type, var_type) + "\nICON-RUC (??z), Deutscher Wetterdienst"
+            if var_type == "tp":
+                cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
+        else:
+            add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
 
-    footer_ax.text(0.01, 0.85, left_text, fontsize=12, fontweight="bold", va="top", ha="left")
-    footer_ax.text(0.734, 0.92, "Prognose für:", fontsize=12, va="top", ha="left", fontweight="bold")
-    footer_ax.text(0.99, 0.68, f"{valid_time_local:%d.%m.%Y %H:%M} Uhr",
-                   fontsize=12, va="top", ha="right", fontweight="bold")
+        # Footer
+        footer_ax = fig.add_axes([0.0, (legend_bottom_px + legend_h_px)/FIG_H_PX, 1.0,
+                                (BOTTOM_AREA_PX - legend_h_px - legend_bottom_px)/FIG_H_PX])
+        footer_ax.axis("off")
+        footer_texts = {
+            "ww": "Signifikantes Wetter",
+            "t2m": "Temperatur 2m (°C)",
+            "tp": "Niederschlag, 1Std (mm)",
+            "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
+            "tp_acc": "Akkumulierter Niederschlag (mm)",
+            "cape_ml": "CAPE-Index (J/kg)",
+            "snow1cm": "Schneehöhe ≥ 1 cm (%)",
+            "snow2cm": "Schneehöhe ≥ 2 cm (%)",
+            "snow": "Schneehöhe (cm)"
+        }
 
-    # Speichern
-    outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.png"
-    plt.savefig(os.path.join(output_dir, outname), dpi=100, bbox_inches=None, pad_inches=0)
-    plt.close()
+        left_text = footer_texts.get(var_type, var_type) + \
+                    f"\nICON-RUC ({pd.to_datetime(run_time_utc).hour:02d}z), Deutscher Wetterdienst" \
+                    if run_time_utc is not None else \
+                    footer_texts.get(var_type, var_type) + "\nICON-RUC (??z), Deutscher Wetterdienst"
+
+        footer_ax.text(0.01, 0.85, left_text, fontsize=12, fontweight="bold", va="top", ha="left")
+        footer_ax.text(0.734, 0.92, "Prognose für:", fontsize=12, va="top", ha="left", fontweight="bold")
+        footer_ax.text(0.99, 0.68, f"{valid_time_local:%d.%m.%Y %H:%M} Uhr",
+                    fontsize=12, va="top", ha="right", fontweight="bold")
+
+        # Speichern
+        outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.png"
+        plt.savefig(os.path.join(output_dir, outname), dpi=100, bbox_inches=None, pad_inches=0)
+        plt.close()
