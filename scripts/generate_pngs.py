@@ -578,6 +578,8 @@ else:
 
             if var_type == "tp":
                 cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
+            if var_type=="tp_acc":
+                cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in tp_acc_bounds])
         else:
             add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
 
