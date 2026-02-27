@@ -124,12 +124,14 @@ jobs:
         with:
           name: grib2
           path: data/
+          retention-days: 1
 
       - name: Upload grid file as artifact
         uses: actions/upload-artifact@v4
         with:
           name: grid
           path: data/grid/
+          retention-days: 1
 
 # -------------------------------------------------------
   # 2️⃣ Generate PNGs in parallel (matrix)
@@ -179,6 +181,7 @@ jobs:
         with:
           name: iconruc-${{ matrix.variable }}
           path: iconruc/${{ matrix.variable }}
+          retention-days: 1
 
 
 
