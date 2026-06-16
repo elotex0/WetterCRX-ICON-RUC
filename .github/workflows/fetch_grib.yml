@@ -149,7 +149,7 @@ jobs:
     needs: fetch_and_generate
     strategy:
       matrix:
-        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, srh3km] #snow
+        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, srh3km, ehi] #snow
       max-parallel: 6
     steps:
       - name: Checkout Repo
@@ -178,11 +178,20 @@ jobs:
       - name: Generate PNGs for ${{ matrix.variable }}
         run: |
           mkdir -p iconruc/${{ matrix.variable }}
-          python scripts/generate_pngs.py \
-            data/${{ matrix.variable }} \
-            iconruc/${{ matrix.variable }} \
-            ${{ matrix.variable }} \
-            data/grid/grid.nc
+          if [ "${{ matrix.variable }}" = "ehi" ]; then
+            python scripts/generate_pngs.py \
+              data/${{ matrix.variable }} \
+              iconruc/${{ matrix.variable }} \
+              ${{ matrix.variable }} \
+              data/grid/grid.nc \
+              data/cape_ml
+            else
+              python scripts/generate_pngs.py \
+                data/${{ matrix.variable }} \
+                iconruc/${{ matrix.variable }} \
+                ${{ matrix.variable }} \
+                data/grid/grid.nc
+            fi
 
       - name: Upload PNGs artifact
         uses: actions/upload-artifact@v4
