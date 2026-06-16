@@ -27,6 +27,7 @@ data_dir = sys.argv[1]
 output_dir = sys.argv[2]
 var_type = sys.argv[3].lower()
 gridfile = sys.argv[4] if len(sys.argv) > 4 else "data/grid/grid.nc"
+cape_dir = sys.argv[5] if len(sys.argv) > 5 else None
 
 if not os.path.exists(gridfile):
     raise FileNotFoundError(f"Grid-Datei nicht gefunden: {gridfile}")
@@ -48,9 +49,6 @@ cities = pd.DataFrame({
 
 # ------------------------------
 # Farben und Normen
-# ------------------------------
-# ------------------------------
-# WW-Farben
 # ------------------------------
 ww_colors_base = {
     0: "#FFFFFF", 1: "#D3D3D3", 2: "#A9A9A9", 3: "#696969",
@@ -142,11 +140,10 @@ cape_colors = ListedColormap([
 ])
 cape_norm = mcolors.BoundaryNorm(cape_bounds, cape_colors.N)
 
-
 #-------------------------------
 # Schneehöhen-Farben
 #------------------------------
-snow_bounds = [0, 0.1, 0.5, 1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 250, 300, 400]  # in cm
+snow_bounds = [0, 0.1, 0.5, 1, 2, 3, 4, 5, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 250, 300, 400]
 snow_colors = ListedColormap([
         "#F8F8F8", "#DCDBFA", "#AAA9C8", "#75BAFF", "#349AFF", "#0582FF",
         "#0069D2", "#004F9C", "#01327F", "#4B007F", "#64007F", "#9101BB",
@@ -155,11 +152,10 @@ snow_colors = ListedColormap([
     ])
 snow_norm = mcolors.BoundaryNorm(snow_bounds, snow_colors.N)
 
-
 #-------------------------------
 # SRH-Farben
 #------------------------------
-srh_bounds = [-250, -200, -150, -100, -50, -25, 25, 50, 100, 150, 200, 250, 300, 350, 400, 500, 600, 700, 800, 1000, 1250, 1500]  # m/s
+srh_bounds = [-250, -200, -150, -100, -50, -25, 25, 50, 100, 150, 200, 250, 300, 350, 400, 500, 600, 700, 800, 1000, 1250, 1500]
 srh_colors = ListedColormap([
         "#0069D2", "#0482FF", "#359AFF", "#75BAFF", "#D2E9FF", "#FFFFFF",
         "#B4FF5A", "#63ED07", "#1ACF05", "#97C90E", "#E8DC00", "#FFF42B",
@@ -168,8 +164,16 @@ srh_colors = ListedColormap([
     ])
 srh_norm = mcolors.BoundaryNorm(srh_bounds, srh_colors.N)
 
-
-
+#-------------------------------
+# EHI-Farben
+#------------------------------
+ehi_bounds = [0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0]
+ehi_colors = ListedColormap([
+    "#FFFFFF", "#75BAFF", "#0482FF", "#1ACF05", "#63ED07",
+    "#FFF42B", "#E8DC00", "#FF7F27", "#F71E54", "#880000",
+    "#64007F", "#C200FB", "#DD66FF", "#EBA6FF", "#B97A57"
+])
+ehi_norm = mcolors.BoundaryNorm(ehi_bounds, ehi_colors.N)
 
 # ------------------------------
 # Kartenparameter
@@ -179,7 +183,6 @@ BOTTOM_AREA_PX = 179
 TOP_AREA_PX = FIG_H_PX - BOTTOM_AREA_PX
 TARGET_ASPECT = FIG_W_PX / TOP_AREA_PX
 
-# Bounding Box Deutschland (fix, keine GeoJSON nötig)
 extent = [5, 16, 47, 56]
 
 # ------------------------------
@@ -207,7 +210,7 @@ def add_ww_legend_bottom(fig, ww_categories, ww_colors_base):
 # ------------------------------
 # ICON Grid laden (einmal!)
 # ------------------------------
-nc = netCDF4.Dataset(gridfile)  # Datei öffnen
+nc = netCDF4.Dataset(gridfile)
 lats = np.rad2deg(nc.variables["clat"][:])
 lons = np.rad2deg(nc.variables["clon"][:])
 nc.close()
@@ -222,9 +225,9 @@ for filename in sorted(os.listdir(data_dir)):
     path = os.path.join(data_dir, filename)
     ds = cfgrib.open_dataset(path)
 
-        # --------------------------
-        # Daten je Typ
-        # --------------------------
+    # --------------------------
+    # Daten je Typ
+    # --------------------------
     if var_type == "t2m":
         if "t2m" not in ds: continue
         data = ds["t2m"].values - 273.15
@@ -232,9 +235,9 @@ for filename in sorted(os.listdir(data_dir)):
     elif var_type == "tp":
         if "tprate" not in ds: continue
         data = ds["tprate"].values
-        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
+        data[data < 0.1] = 0
         cmap, norm = prec_colors, prec_norm
-        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
+        cmap.set_under('none')
     elif var_type == "ww":
         varname = next((vn for vn in ds.data_vars if vn in ["WW", "weather"]), None)
         if varname is None:
@@ -249,9 +252,9 @@ for filename in sorted(os.listdir(data_dir)):
     elif var_type == "tp_acc":
         if "tp" not in ds: continue
         data = ds["tp"].values
-        data[data < 0.1] = 0  # Fix: Setze <0.1 zu 0 statt NaN, um Interpolation mit 0 zu ermöglichen
+        data[data < 0.1] = 0
         cmap, norm = tp_acc_colors, tp_acc_norm
-        cmap.set_under('none')  # Fix: Transparenz für Werte unter der untersten Bound (für trockene Gebiete)
+        cmap.set_under('none')
     elif var_type == "cape_ml":
         if "CAPE_ML" not in ds: continue
         data = ds["CAPE_ML"].values
@@ -265,8 +268,32 @@ for filename in sorted(os.listdir(data_dir)):
         cmap, norm = srh_colors, srh_norm
     elif var_type == "snow":
         if "sde" not in ds: continue
-        data = ds["sde"].values * 100  # in cm umrechnen
+        data = ds["sde"].values * 100
         cmap, norm = snow_colors, snow_norm
+    elif var_type == "ehi":
+        if cape_dir is None:
+            print("Kein cape_dir angegeben (5. Argument)")
+            continue
+        # srh3km_000.grib2 -> cape_000.grib2
+        suffix = filename.replace("srh3km_", "")  # z.B. "000.grib2"
+        cape_filename = f"cape_ml_{suffix}"
+        cape_path = os.path.join(cape_dir, cape_filename)
+        if not os.path.exists(cape_path):
+            print(f"Kein passendes CAPE-File gefunden: {cape_path}")
+            continue
+        ds_cape = cfgrib.open_dataset(cape_path)
+        if "hlcy" not in ds:
+            print(f"hlcy fehlt in {filename}")
+            continue
+        if "CAPE_ML" not in ds_cape:
+            print(f"CAPE_ML fehlt in {cape_filename}")
+            continue
+        srh = ds["hlcy"].values
+        cape = ds_cape["CAPE_ML"].values
+        cape[cape < 0] = 0
+        data = (cape * srh) / 160000.0
+        data[data < 0] = np.nan
+        cmap, norm = ehi_colors, ehi_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
@@ -301,7 +328,7 @@ for filename in sorted(os.listdir(data_dir)):
     # Regelmäßiges Gitter definieren
     # ------------------------------
     lon_min, lon_max, lat_min, lat_max = extent
-    res = 0.015  # Auflösung in Grad (anpassbar, z. B. 0.05 für höhere Auflösung)
+    res = 0.015
     lon_grid = np.arange(lon_min, lon_max + res, res)
     lat_grid = np.arange(lat_min, lat_max + res, res)
     lon_grid, lat_grid = np.meshgrid(lon_grid, lat_grid)
@@ -314,7 +341,6 @@ for filename in sorted(os.listdir(data_dir)):
     points_valid = points[valid_mask]
     data_valid = data[valid_mask]
 
-    # Nearest Neighbor Interpolation (schnell und ausreichend für viele Fälle)
     interpolator = NearestNDInterpolator(points_valid, data_valid)
     data_grid = interpolator(lon_grid, lat_grid)
 
@@ -322,10 +348,9 @@ for filename in sorted(os.listdir(data_dir)):
     # pcolormesh Plot
     # ------------------------------
     if cmap is not None:
-        # Für Variablen mit vorgegebener Farbkarte (t2m, tp, dbz_cmax, tp_acc, cape_ml)
         im = ax.pcolormesh(lon_grid, lat_grid, data_grid, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
         if var_type == "dbz_cmax":
-            data_smooth = gaussian_filter (data_grid, sigma = 0.8)
+            data_smooth = gaussian_filter(data_grid, sigma=0.8)
             im = ax.pcolormesh(lon_grid, lat_grid, data_smooth, cmap=cmap, norm=norm, transform=ccrs.PlateCarree())
     else:
         # WW-Farben
@@ -340,7 +365,6 @@ for filename in sorted(os.listdir(data_dir)):
             idx_data[data_grid == c] = i
         im = ax.pcolormesh(lon_grid, lat_grid, idx_data, cmap=cmap, vmin=-0.5, vmax=len(codes)-0.5, transform=ccrs.PlateCarree())
 
-    # Bundesländer-Grenzen aus Cartopy (statt GeoJSON)
     ax.add_feature(cfeature.STATES.with_scale("10m"), edgecolor="#2C2C2C", linewidth=1)
 
     for _, city in cities.iterrows():
@@ -354,12 +378,19 @@ for filename in sorted(os.listdir(data_dir)):
     ax.add_patch(mpatches.Rectangle((0,0),1,1, transform=ax.transAxes, fill=False, color="black", linewidth=2))
 
     # --------------------------
-    # Colorbar (falls relevant)
+    # Colorbar
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km"]:
-        bounds = t2m_bounds if var_type == "t2m" else prec_bounds if var_type == "tp" else dbz_bounds if var_type == "dbz_cmax" else tp_acc_bounds if var_type == "tp_acc" else cape_bounds if var_type == "cape_ml" else snow_bounds if var_type == "snow" else srh_bounds
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km", "ehi"]:
+        bounds = (t2m_bounds if var_type == "t2m" else
+                  prec_bounds if var_type == "tp" else
+                  dbz_bounds if var_type == "dbz_cmax" else
+                  tp_acc_bounds if var_type == "tp_acc" else
+                  cape_bounds if var_type == "cape_ml" else
+                  snow_bounds if var_type == "snow" else
+                  ehi_bounds if var_type == "ehi" else
+                  srh_bounds)
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -369,12 +400,11 @@ for filename in sorted(os.listdir(data_dir)):
         if var_type == "t2m":
             tick_labels = [str(tick) if tick % 4 == 0 else "" for tick in bounds]
             cbar.set_ticklabels(tick_labels)
-        if var_type=="snow":
+        if var_type == "snow":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in snow_bounds])
-
         if var_type == "tp":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
-        if var_type=="tp_acc":
+        if var_type == "tp_acc":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in tp_acc_bounds])
     else:
         add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
@@ -391,7 +421,8 @@ for filename in sorted(os.listdir(data_dir)):
         "tp_acc": "Akkumulierter Niederschlag (mm)",
         "cape_ml": "CAPE-Index (J/kg)",
         "snow": "Schneehöhe (cm)",
-        "srh3km": "Helizität 0-3km (m²/s²)"
+        "srh3km": "Helizität 0-3km (m²/s²)",
+        "ehi": "Energy Helicity Index (EHI)",
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
