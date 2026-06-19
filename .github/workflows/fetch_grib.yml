@@ -170,7 +170,7 @@ jobs:
     strategy:
       matrix:
         variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, srh3km, ehi, scp] #snow
-      max-parallel: 8
+      max-parallel: 9
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v6
