@@ -28,6 +28,8 @@ output_dir = sys.argv[2]
 var_type = sys.argv[3].lower()
 gridfile = sys.argv[4] if len(sys.argv) > 4 else "data/grid/grid.nc"
 cape_dir = sys.argv[5] if len(sys.argv) > 5 else None
+wshearu_dir = sys.argv[6] if len(sys.argv) > 6 else None
+wshearv_dir = sys.argv[7] if len(sys.argv) > 7 else None
 
 if not os.path.exists(gridfile):
     raise FileNotFoundError(f"Grid-Datei nicht gefunden: {gridfile}")
@@ -176,6 +178,18 @@ ehi_colors = ListedColormap([
 ehi_norm = mcolors.BoundaryNorm(ehi_bounds, ehi_colors.N)
 
 # ------------------------------
+# SCP-Farben
+# ------------------------------
+scp_bounds = [0, 0.2, 0.5, 1, 2, 3, 4, 6, 8, 10, 15, 20, 25, 30, 40, 50]
+scp_colors = ListedColormap([
+    "#FFFFFF", "#D2E9FF", "#75BAFF", "#0069D2", "#148F1B",
+    "#63ED07", "#FFF42B", "#E8DC00", "#FF7F27", "#F71E54",
+    "#880000", "#64007F", "#C200FB", "#DD66FF", "#EBA6FF",
+    "#B97A57"
+])
+scp_norm = mcolors.BoundaryNorm(scp_bounds, scp_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -294,6 +308,45 @@ for filename in sorted(os.listdir(data_dir)):
         data = (cape * srh) / 160000.0
         data[data < 0] = np.nan
         cmap, norm = ehi_colors, ehi_norm
+    elif var_type == "scp":
+        if None in [cape_dir, wshearu_dir, wshearv_dir]:
+            print("Für SCP werden cape_dir, wshearu_dir, wshearv_dir benötigt")
+            continue
+
+        suffix = filename.replace("srh3km_", "")
+
+        cape_path    = os.path.join(cape_dir,    f"cape_ml_{suffix}")
+        wshearu_path = os.path.join(wshearu_dir, f"wshear_u_{suffix}")
+        wshearv_path = os.path.join(wshearv_dir, f"wshear_v_{suffix}")
+
+        missing = False
+        for p in [cape_path, wshearu_path, wshearv_path]:
+            if not os.path.exists(p):
+                print(f"Datei nicht gefunden: {p}")
+                missing = True
+        if missing:
+            continue
+
+        ds_cape    = cfgrib.open_dataset(cape_path)
+        ds_wshearu = cfgrib.open_dataset(wshearu_path)
+        ds_wshearv = cfgrib.open_dataset(wshearv_path)
+
+        if "hlcy" not in ds:
+            print(f"hlcy fehlt in {filename}")
+            continue
+
+        srh  = ds["hlcy"].values                  # 0-3km SRH aus data_dir
+        cape = ds_cape["CAPE_ML"].values
+        bs06 = np.sqrt(ds_wshearu["WSHEAR_U"].values**2 + ds_wshearv["WSHEAR_V"].values**2)
+
+        cape[cape < 0] = 0
+        cape_term = cape / 1000
+        srh_term  = np.maximum(0, srh) / 50
+        ebs_term  = np.where(bs06 < 10, 0.0, np.where(bs06 > 20, 1.0, bs06 / 20))
+
+        data = np.round(cape_term * srh_term * ebs_term, 2)
+        data[data < 0] = np.nan
+        cmap, norm = scp_colors, scp_norm
     else:
         print(f"Var_type {var_type} nicht implementiert")
         continue
@@ -382,7 +435,7 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km", "ehi"]:
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km", "ehi", "scp"]:
         bounds = (t2m_bounds if var_type == "t2m" else
                   prec_bounds if var_type == "tp" else
                   dbz_bounds if var_type == "dbz_cmax" else
@@ -390,7 +443,8 @@ for filename in sorted(os.listdir(data_dir)):
                   cape_bounds if var_type == "cape_ml" else
                   snow_bounds if var_type == "snow" else
                   ehi_bounds if var_type == "ehi" else
-                  srh_bounds)
+                  srh_bounds if var_type == "srh3km" else
+                  scp_bounds )
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -406,6 +460,9 @@ for filename in sorted(os.listdir(data_dir)):
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in prec_bounds])
         if var_type == "tp_acc":
             cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in tp_acc_bounds])
+        if var_type == "scp":
+            cbar.set_ticklabels([int(tick) if float(tick).is_integer() else tick for tick in scp_bounds])
+        
     else:
         add_ww_legend_bottom(fig, ww_categories, ww_colors_base)
 
@@ -423,6 +480,7 @@ for filename in sorted(os.listdir(data_dir)):
         "snow": "Schneehöhe (cm)",
         "srh3km": "Helizität 0-3km (m²/s²)",
         "ehi": "Energy Helicity Index (EHI)",
+        "scp": "Supercell Composite Parameter (SCP)",
     }
 
     left_text = footer_texts.get(var_type, var_type) + \
