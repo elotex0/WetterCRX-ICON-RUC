@@ -129,6 +129,26 @@ jobs:
             wget -q -O srh3km_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
           '
 
+      - name: Download wshear u GRIB2 files
+        run: |
+          mkdir -p data/wshear_u
+          cd data/wshear_u
+          seq 0 27 | xargs -n 1 -P 7 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WSHEAR_U/lvt1/103/lv1/6000/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O wshear_u_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
+
+      - name: Download wshear u GRIB2 files
+        run: |
+          mkdir -p data/wshear_v
+          cd data/wshear_v
+          seq 0 27 | xargs -n 1 -P 7 -I{} bash -c '
+            i_padded=$(printf "%03d" {} )
+            URL="https://opendata.dwd.de/weather/nwp/v1/m/icon-d2-ruc/p/WSHEAR_V/lvt1/103/lv1/6000/r/${DATE}T${RUN}:00/s/PT${i_padded}H00M.grib2"
+            wget -q -O wshear_v_${i_padded}.grib2 "$URL" || echo "Datei $URL nicht verfügbar, überspringe..."
+          '
+
       - name: Upload GRIB2 as artifact
         uses: actions/upload-artifact@v6
         with:
@@ -149,7 +169,7 @@ jobs:
     needs: fetch_and_generate
     strategy:
       matrix:
-        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, srh3km, ehi] #snow
+        variable: [t2m, ww, tp_acc, tp, dbz_cmax, cape_ml, srh3km, ehi, stp] #snow
       max-parallel: 8
     steps:
       - name: Checkout Repo
@@ -185,6 +205,15 @@ jobs:
               ${{ matrix.variable }} \
               data/grid/grid.nc \
               data/cape_ml
+            elif [ "${{ matrix.variable }}" = "scp" ]; then
+              python scripts/generate_pngs.py \
+                data/srh3km \
+                iconruc/${{ matrix.variable }} \
+                ${{ matrix.variable }} \
+                data/grid/grid.nc \
+                data/cape_ml \
+                data/wshear_u \
+                data/wshear_v 
             else
               python scripts/generate_pngs.py \
                 data/${{ matrix.variable }} \
