@@ -161,7 +161,7 @@ srh_bounds = [-250, -200, -150, -100, -50, -25, 25, 50, 100, 150, 200, 250, 300,
 srh_colors = ListedColormap([
         "#0069D2", "#0482FF", "#359AFF", "#75BAFF", "#D2E9FF", "#FFFFFF",
         "#B4FF5A", "#63ED07", "#1ACF05", "#97C90E", "#E8DC00", "#FFF42B",
-        "#FFA66A", "#F84E78", "#F71E54", "#BF0000", "#BF0000", "#64007F",
+        "#FFA66A", "#F84E78", "#F71E54", "#BF0000", "#880000", "#64007F",
         "#C200FB", "#DD66FF", "#EBA6FF", "#EFC7FA"
     ])
 srh_norm = mcolors.BoundaryNorm(srh_bounds, srh_colors.N)
