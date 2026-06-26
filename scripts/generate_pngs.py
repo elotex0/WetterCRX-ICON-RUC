@@ -190,6 +190,19 @@ scp_colors = ListedColormap([
 scp_norm = mcolors.BoundaryNorm(scp_bounds, scp_colors.N)
 
 # ------------------------------
+# Windböen-Farben
+# ------------------------------
+wind_bounds = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 180, 200, 220, 240, 260, 280, 300]
+wind_colors = ListedColormap([
+    "#68AD05", "#8DC00B", "#B1D415", "#D5E81C", "#FBFC22",
+    "#FAD024", "#F9A427", "#FC7929", "#FB4D2B", "#EA2B57",
+    "#FB22A5", "#FC22CE", "#FC22F5", "#FC62F8", "#FD80F8",
+    "#FFBFFC", "#FEDFFE", "#FEFFFF", "#E1E0FF", "#C3C3FF",
+    "#A5A5FF", "#A5A5FF", "#6868FE"
+])
+wind_norm = mcolors.BoundaryNorm(wind_bounds, wind_colors.N)
+
+# ------------------------------
 # Kartenparameter
 # ------------------------------
 FIG_W_PX, FIG_H_PX = 880, 830
@@ -263,6 +276,13 @@ for filename in sorted(os.listdir(data_dir)):
         if "DBZ_CMAX" not in ds: continue
         data = ds["DBZ_CMAX"].values
         cmap, norm = dbz_colors, dbz_norm
+    elif var_type == "wind":
+        if "fg10" not in ds:
+            print(f"Keine wind-Variable in {filename} ds.keys(): {list(ds.keys())}")
+            continue
+        data = ds["fg10"].values
+        data = data * 3.6  # m/s → km/h
+        cmap, norm = wind_colors, wind_norm
     elif var_type == "tp_acc":
         if "tp" not in ds: continue
         data = ds["tp"].values
@@ -426,6 +446,46 @@ for filename in sorted(os.listdir(data_dir)):
         txt = ax.text(city["lon"]+0.1, city["lat"]+0.1, city["name"],
                     fontsize=9, color="black", weight="bold", zorder=6)
         txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="white")])
+    if var_type == "t2m":
+        margin = 0.5
+        data_masked = np.where(
+            (lon_grid >= extent[0] + margin) & (lon_grid <= extent[1] - margin) &
+            (lat_grid >= extent[2] + margin) & (lat_grid <= extent[3] - margin),
+            data_grid, np.nan
+        )
+
+        max_idx = np.unravel_index(np.nanargmax(data_masked), data_masked.shape)
+
+        for idx in [max_idx]:
+            val = data_masked[idx]
+            lon = lon_grid[idx]
+            lat = lat_grid[idx]
+            txt = ax.text(lon, lat, f"{val:.0f}",
+                        fontsize=14, color="white", fontweight="bold",
+                        ha="center", va="center", zorder=11,
+                        clip_on=True,
+                        transform=ccrs.PlateCarree())
+            txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="black")])
+    elif var_type == "wind":
+        margin = 0.5
+        data_masked = np.where(
+            (lon_grid >= extent[0] + margin) & (lon_grid <= extent[1] - margin) &
+            (lat_grid >= extent[2] + margin) & (lat_grid <= extent[3] - margin),
+            data_grid, np.nan
+        )
+
+        max_idx = np.unravel_index(np.nanargmax(data_masked), data_masked.shape)
+
+        for idx in [max_idx]:
+            val = data_masked[idx]
+            lon = lon_grid[idx]
+            lat = lat_grid[idx]
+            txt = ax.text(lon, lat, f"{val:.0f}",
+                        fontsize=14, color="white", fontweight="bold",
+                        ha="center", va="center", zorder=11,
+                        clip_on=True,
+                        transform=ccrs.PlateCarree())
+            txt.set_path_effects([path_effects.withStroke(linewidth=1.5, foreground="black")])
     ax.add_feature(cfeature.BORDERS, linestyle=":")
     ax.add_feature(cfeature.COASTLINE)
     ax.add_patch(mpatches.Rectangle((0,0),1,1, transform=ax.transAxes, fill=False, color="black", linewidth=2))
@@ -435,7 +495,7 @@ for filename in sorted(os.listdir(data_dir)):
     # --------------------------
     legend_h_px = 50
     legend_bottom_px = 45
-    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km", "ehi", "scp"]:
+    if var_type in ["t2m", "tp", "dbz_cmax", "tp_acc", "cape_ml", "snow", "srh3km", "ehi", "scp", "wind"]:
         bounds = (t2m_bounds if var_type == "t2m" else
                   prec_bounds if var_type == "tp" else
                   dbz_bounds if var_type == "dbz_cmax" else
@@ -444,7 +504,8 @@ for filename in sorted(os.listdir(data_dir)):
                   snow_bounds if var_type == "snow" else
                   ehi_bounds if var_type == "ehi" else
                   srh_bounds if var_type == "srh3km" else
-                  scp_bounds )
+                  scp_bounds if var_type == "scp" else
+                  wind_bounds)
         cbar_ax = fig.add_axes([0.03, legend_bottom_px / FIG_H_PX, 0.94, legend_h_px / FIG_H_PX])
         cbar = fig.colorbar(im, cax=cbar_ax, orientation="horizontal", ticks=bounds)
         cbar.ax.tick_params(colors="black", labelsize=7)
@@ -476,6 +537,7 @@ for filename in sorted(os.listdir(data_dir)):
         "tp": "Niederschlag, 1Std (mm)",
         "dbz_cmax": "Sim. Max. Radarreflektivität (dBZ)",
         "tp_acc": "Akkumulierter Niederschlag (mm)",
+        "wind": "Windböen (km/h)",
         "cape_ml": "CAPE-Index (J/kg)",
         "snow": "Schneehöhe (cm)",
         "srh3km": "Helizität 0-3km (m²/s²)",
