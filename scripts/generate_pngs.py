@@ -455,8 +455,9 @@ for filename in sorted(os.listdir(data_dir)):
         )
 
         max_idx = np.unravel_index(np.nanargmax(data_masked), data_masked.shape)
+        min_idx = np.unravel_index(np.nanargmin(data_masked), data_masked.shape)
 
-        for idx in [max_idx]:
+        for idx in [max_idx, min_idx]:
             val = data_masked[idx]
             lon = lon_grid[idx]
             lat = lat_grid[idx]
