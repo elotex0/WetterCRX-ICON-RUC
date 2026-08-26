@@ -44,12 +44,13 @@ jobs:
 
           echo "Current UTC time: $HOUR -> RUN=$RUN, DATE=$DATE"
 
-      # 🆕 NEU: Grid-Datei herunterladen
-      - name: Download ICON unstructured grid
+      # 🆕 NEU: Grid-Dateien herunterladen
+      - name: Download ICON grid (clat/clon)
         run: |
           mkdir -p data/grid
-          wget -q http://icon-downloads.mpimet.mpg.de/grids/public/edzw/icon_grid_0047_R19B07_L.nc -O data/grid/grid.nc
-          echo "✅ ICON grid heruntergeladen"
+          wget -q https://github.com/elotex0/WetterCRX-ICON-RUC/releases/download/v1.0/clat.grib2 -O data/grid/clat.grib2
+          wget -q https://github.com/elotex0/WetterCRX-ICON-RUC/releases/download/v1.0/clon.grib2 -O data/grid/clon.grib2
+          echo "✅ ICON grid (clat/clon) heruntergeladen"
 
       - name: Download t2m GRIB2 files
         run: |
