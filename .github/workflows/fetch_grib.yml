@@ -214,14 +214,14 @@ jobs:
               data/srh3km \
               iconruc/${{ matrix.variable }} \
               ${{ matrix.variable }} \
-              data/grid/grid.nc \
+              data/grid \
               data/cape_ml
             elif [ "${{ matrix.variable }}" = "scp" ]; then
               python scripts/generate_pngs.py \
                 data/srh3km \
                 iconruc/${{ matrix.variable }} \
                 ${{ matrix.variable }} \
-                data/grid/grid.nc \
+                data/grid \
                 data/cape_ml \
                 data/wshear_u \
                 data/wshear_v 
@@ -230,7 +230,7 @@ jobs:
                 data/${{ matrix.variable }} \
                 iconruc/${{ matrix.variable }} \
                 ${{ matrix.variable }} \
-                data/grid/grid.nc
+                data/grid
             fi
 
       - name: Upload PNGs artifact
