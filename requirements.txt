@@ -8,3 +8,5 @@ matplotlib
 cartopy
 geopandas
 adjustText
+scipy
+Pillow
