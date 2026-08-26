@@ -310,7 +310,7 @@ else:
 
 print(f"Gitterpunkte: {points_merc_base.shape[0]} (finite)")
 print("Baue Basis-Triangulation für Interpolation & Hüllen-Maske auf ...")
-base_tri = Delaunay(points_merc_base, qhull_options="QJ")
+base_tri = Delaunay(points_merc_base, qhull_options="Qbb Qc Qz Qt")
 interp_linear_base = LinearNDInterpolator(base_tri, np.zeros(len(points_merc_base), dtype=np.float64))
 
 # Zielgitter (Web Mercator) ist für alle Dateien identisch -> einmal berechnen
