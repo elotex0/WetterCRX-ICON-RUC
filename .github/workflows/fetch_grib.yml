@@ -33,7 +33,7 @@ jobs:
         id: set_run_date
         run: |
           HOUR="23"
-          DATE="20260826"
+          DATE="2026-08-26"
           RUN=$HOUR
 
           echo "RUN=$RUN" >> $GITHUB_ENV
