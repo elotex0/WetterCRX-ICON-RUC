@@ -125,7 +125,6 @@ dbz_colors = ListedColormap([
     "#FF5000", "#FF2801", "#F40000", "#EA0001", "#CC0000",
     "#FFC8FF", "#E9A1EA", "#D379D3", "#BE55BE", "#960E96"
 ])
-dbz_colors.set_under(alpha=0)
 dbz_norm = mcolors.BoundaryNorm(dbz_bounds, dbz_colors.N)
 
 # ------------------------------
@@ -168,13 +167,12 @@ srh_norm = mcolors.BoundaryNorm(srh_bounds, srh_colors.N)
 # ------------------------------
 # EHI-Farben
 # ------------------------------
-ehi_bounds = [0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0]
+ehi_bounds = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0]
 ehi_colors = ListedColormap([
-    "#75BAFF", "#0482FF", "#1ACF05", "#63ED07",
+    "#FFFFFF", "#75BAFF", "#0482FF", "#1ACF05", "#63ED07",
     "#FFF42B", "#E8DC00", "#FF7F27", "#F71E54", "#880000",
     "#64007F", "#C200FB", "#DD66FF", "#EBA6FF", "#B97A57"
 ])
-ehi_colors.set_under(alpha=0)
 ehi_norm = mcolors.BoundaryNorm(ehi_bounds, ehi_colors.N)
 
 # ------------------------------
@@ -347,7 +345,6 @@ for filename in all_files_global:
             ds.close()
             continue
         data = ds["tprate"].values
-        data[data < 0.1] = np.nan
         cmap, norm = prec_colors, prec_norm
     elif var_type == "tp_acc":
         if "tp" not in ds:
@@ -355,7 +352,6 @@ for filename in all_files_global:
             ds.close()
             continue
         data = ds["tp"].values
-        data[data < 0.1] = np.nan
         cmap, norm = tp_acc_colors, tp_acc_norm
     elif var_type == "ww":
         varname = next((vn for vn in ds.data_vars if vn in ["WW", "weather"]), None)
