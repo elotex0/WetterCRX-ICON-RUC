@@ -421,7 +421,6 @@ for filename in all_files_global:
         cape = ds_cape["CAPE_ML"].values
         cape[cape < 0] = 0
         data = (cape * srh) / 160000.0
-        data[data < 0] = np.nan
         cmap, norm = ehi_colors, ehi_norm
         ds_cape.close()
     elif var_type == "scp":
