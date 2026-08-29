@@ -2,6 +2,8 @@ import sys
 import cfgrib
 import pandas as pd
 import os
+import struct
+import zlib
 from zoneinfo import ZoneInfo
 from scipy.spatial.distance import cdist
 import numpy as np
@@ -321,6 +323,101 @@ outside_hull = base_tri.find_simplex(target_points) < 0
 outside_hull_2d = outside_hull.reshape(xx.shape)
 
 # ------------------------------
+# Eingebettete Rohdaten (DVAL-Chunk) im WebP
+# ------------------------------
+# WebP ist ein RIFF-Container, der beliebige zusätzliche Chunks mit eigenem
+# FourCC-Tag erlaubt - konforme Reader ignorieren unbekannte Chunks einfach.
+# Wie im ICON-D2-Skript hängen wir für t2m/wind einen "DVAL"-Chunk mit den
+# echten physikalischen Werten (nicht den Farben!) an, komprimiert mit zlib,
+# plus die exakte Web-Mercator-Domäne in Metern für die pixelgenaue
+# Rücktransformation im Frontend. `x_new`/`y_new` sind hier bereits das
+# volle Zielraster (row0 = Süden, wie bei render_data_merc), daher genügt
+# ein einfacher Index-Crop darauf - keine separate "volle" Rastervariable
+# nötig wie beim ICON-D2-Skript.
+EMBED_DATA_VARS = {"t2m", "wind"}
+GERMANY_BBOX_LONLAT = [5.5, 15.3, 47.0, 55.3]  # lon_min, lon_max, lat_min, lat_max
+
+_gbx_min, _gby_min = lonlat_to_webmercator(GERMANY_BBOX_LONLAT[0], GERMANY_BBOX_LONLAT[2])
+_gbx_max, _gby_max = lonlat_to_webmercator(GERMANY_BBOX_LONLAT[1], GERMANY_BBOX_LONLAT[3])
+
+_col_i0 = max(0, np.searchsorted(x_new, _gbx_min, side="left") - 1)
+_col_i1 = min(len(x_new) - 1, np.searchsorted(x_new, _gbx_max, side="right"))
+_row_i0 = max(0, np.searchsorted(y_new, _gby_min, side="left") - 1)
+_row_i1 = min(len(y_new) - 1, np.searchsorted(y_new, _gby_max, side="right"))
+
+GERMANY_CROP_EXTENT_3857 = [
+    float(x_new[_col_i0]), float(y_new[_row_i0]),
+    float(x_new[_col_i1]), float(y_new[_row_i1]),
+]
+
+
+def crop_to_germany(data_south_first):
+    """data_south_first: 2D-Array wie render_data_merc (row0 = Süden,
+    aufsteigend in Mercator-Y wie y_new). Schneidet auf die
+    Deutschland-Bbox zu."""
+    return data_south_first[_row_i0:_row_i1 + 1, _col_i0:_col_i1 + 1]
+
+
+DVAL_FOURCC = b"DVAL"
+
+# Quantisierungsschritt je Variable (feiner als die Anzeige-Nachkommastellen
+# in VALUE_DECIMALS, damit keinerlei sichtbarer Genauigkeitsverlust entsteht).
+QUANTUM_STEP = {
+    "t2m": 0.05,   # °C, Anzeige mit 1 Dezimalstelle -> 0.05 ist mehr als genug
+    "wind": 0.2,   # km/h, Anzeige mit 0 Dezimalstellen -> 0.2 ist mehr als genug
+}
+NAN_SENTINEL_I16 = -32768
+
+
+def embed_data_chunk(webp_path, data, extent_3857, quantum, fourcc=DVAL_FOURCC):
+    """Hängt ein rohes Datenfeld als privaten, int16-quantisierten RIFF-Chunk
+    an ein WebP an. Identisches Format wie im ICON-D2-Skript (Version 2).
+
+    data: 2D-Array (float), row0 = Norden (also bereits wie fürs Bild
+          gespiegelt).
+    extent_3857: [x_min, y_min, x_max, y_max] in Web-Mercator-Metern -
+                 exakt das Raster, auf dem `data` liegt.
+    quantum: Rasterschritt in den Originaleinheiten (z.B. 0.05 für °C).
+    """
+    height, width = data.shape
+
+    nan_mask = ~np.isfinite(data)
+    data_filled = np.where(nan_mask, 0.0, data)  # verhindert NaN->int Warnung beim Runden/Casten
+    quant = np.round(data_filled / quantum)
+    # Sicherheitsclip: verhindert einen int16-Überlauf bei extremen
+    # Ausreißern, ohne das eigentlich zulässige Wertespektrum
+    # (t2m/wind liegen weit darunter) einzuschränken.
+    quant = np.clip(quant, -32767, 32767).astype(np.int16)
+    quant[nan_mask] = NAN_SENTINEL_I16
+
+    header = struct.pack("<BBII", 2, 1, width, height)
+    header += struct.pack("<4d", *extent_3857)
+    header += struct.pack("<d", quantum)
+    compressed = zlib.compress(np.ascontiguousarray(quant, dtype="<i2").tobytes(), level=9)
+    payload = header + compressed
+
+    size = len(payload)
+    chunk = fourcc + struct.pack("<I", size) + payload
+    if size % 2 == 1:
+        chunk += b"\x00"  # RIFF-Padding auf gerade Länge, zählt nicht zu size
+
+    with open(webp_path, "rb") as f:
+        content = f.read()
+
+    if content[0:4] != b"RIFF" or content[8:12] != b"WEBP":
+        raise ValueError(f"{webp_path} ist keine gültige WebP-Datei (RIFF/WEBP-Header fehlt)")
+
+    riff_size = struct.unpack("<I", content[4:8])[0]
+    new_riff_size = riff_size + len(chunk)
+
+    with open(webp_path, "wb") as f:
+        f.write(content[:4])
+        f.write(struct.pack("<I", new_riff_size))
+        f.write(content[8:])
+        f.write(chunk)
+
+
+# ------------------------------
 # Dateien durchgehen
 # ------------------------------
 all_files_global = sorted([f for f in os.listdir(data_dir) if f.endswith(".grib2")])
@@ -544,6 +641,16 @@ for filename in all_files_global:
     outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}.webp" if valid_time_local else f"{var_type}_unknown.webp"
     out_path = os.path.join(output_dir, outname)
     save_transparent_webp(render_data_merc, cmap, norm, out_path)
+
+    # Für t2m/wind zusätzlich die echten physikalischen Werte (°C bzw.
+    # km/h, nicht die Farben) als privaten RIFF-Chunk direkt ins WebP
+    # einbetten - row0 = Norden, damit der Chunk 1:1 zur Bildorientierung
+    # passt (das Bild wird in save_transparent_webp beim Speichern
+    # gespiegelt, render_data_merc selbst hat row0 = Süden).
+    if var_type in EMBED_DATA_VARS:
+        germany_data = crop_to_germany(render_data_merc)          # row0 = Süden
+        quantum = QUANTUM_STEP.get(var_type, 0.1)
+        embed_data_chunk(out_path, germany_data[::-1], GERMANY_CROP_EXTENT_3857, quantum)  # row0 = Norden
 
     print(f"{filename} -> {outname}")
 
