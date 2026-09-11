@@ -662,9 +662,11 @@ for filename in all_files_global:
             # 0.0mm (bzw. <0.1mm) soll nicht als Wert im Chunk landen
             embed_source = np.where(embed_source < 0.1, np.nan, embed_source)
 
-        if var_type in ("ehi", "scp"):
-            # negative Werte (kein Unwetterpotential) nicht embedden
-            embed_source = np.where(embed_source < 0, np.nan, embed_source)
+        if var_type == "ehi":
+            embed_source = np.where(embed_source < 0.1, np.nan, embed_source)
+
+        if var_type == "scp":
+            embed_source = np.where(embed_source < 0.2, np.nan, embed_source)
 
         embed_data_chunk(out_path, embed_source, GERMANY_CROP_EXTENT_3857, quantum)
 
