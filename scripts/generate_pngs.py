@@ -230,8 +230,8 @@ VALUE_DECIMALS = {
     "wind": 0,
     "snow": 1,
     "srh3km": 0,
-    "ehi": 2,
-    "scp": 2,
+    "ehi": 1,
+    "scp": 1,
 }
 
 VALUE_NODATA = -9999.0
@@ -334,7 +334,7 @@ outside_hull_2d = outside_hull.reshape(xx.shape)
 # volle Zielraster (row0 = Süden, wie bei render_data_merc), daher genügt
 # ein einfacher Index-Crop darauf - keine separate "volle" Rastervariable
 # nötig wie beim ICON-D2-Skript.
-EMBED_DATA_VARS = {"t2m", "wind"}
+EMBED_DATA_VARS = {"t2m", "wind", "tp", "tp_acc", "ehi", "scp", "srh3km"}
 GERMANY_BBOX_LONLAT = [5.5, 15.3, 47.0, 55.3]  # lon_min, lon_max, lat_min, lat_max
 
 _gbx_min, _gby_min = lonlat_to_webmercator(GERMANY_BBOX_LONLAT[0], GERMANY_BBOX_LONLAT[2])
@@ -363,9 +363,15 @@ DVAL_FOURCC = b"DVAL"
 # Quantisierungsschritt je Variable (feiner als die Anzeige-Nachkommastellen
 # in VALUE_DECIMALS, damit keinerlei sichtbarer Genauigkeitsverlust entsteht).
 QUANTUM_STEP = {
-    "t2m": 0.05,   # °C, Anzeige mit 1 Dezimalstelle -> 0.05 ist mehr als genug
-    "wind": 0.2,   # km/h, Anzeige mit 0 Dezimalstellen -> 0.2 ist mehr als genug
+    "t2m": 0.05,
+    "wind": 0.2,
+    "tp": 0.1,
+    "tp_acc": 0.1,
+    "ehi": 0.05,
+    "scp": 0.05,
+    "srh3km": 0.5,
 }
+
 NAN_SENTINEL_I16 = -32768
 
 
@@ -650,7 +656,17 @@ for filename in all_files_global:
     if var_type in EMBED_DATA_VARS:
         germany_data = crop_to_germany(render_data_merc)          # row0 = Süden
         quantum = QUANTUM_STEP.get(var_type, 0.1)
-        embed_data_chunk(out_path, germany_data[::-1], GERMANY_CROP_EXTENT_3857, quantum)  # row0 = Norden
+        embed_source = germany_data[::-1]                          # row0 = Norden
+
+        if var_type in ("tp", "tp_acc"):
+            # 0.0mm (bzw. <0.1mm) soll nicht als Wert im Chunk landen
+            embed_source = np.where(embed_source < 0.1, np.nan, embed_source)
+
+        if var_type in ("ehi", "scp"):
+            # negative Werte (kein Unwetterpotential) nicht embedden
+            embed_source = np.where(embed_source < 0, np.nan, embed_source)
+
+        embed_data_chunk(out_path, embed_source, GERMANY_CROP_EXTENT_3857, quantum)
 
     print(f"{filename} -> {outname}")
 
