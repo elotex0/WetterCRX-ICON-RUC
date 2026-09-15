@@ -11,15 +11,15 @@ jobs:
 
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
       - name: Cache Python packages
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
@@ -161,13 +161,13 @@ jobs:
           '
 
       - name: Upload GRIB2 as artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: grib2
           path: data/
 
       - name: Upload grid file as artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: grid
           path: data/grid/
@@ -184,10 +184,10 @@ jobs:
       max-parallel: 10
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -195,13 +195,13 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Download GRIB2 artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: grib2
           path: data/
 
       - name: Download grid artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: grid
           path: data/grid/
@@ -234,7 +234,7 @@ jobs:
             fi
 
       - name: Upload PNGs artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: iconruc-${{ matrix.variable }}
           path: iconruc/${{ matrix.variable }}
@@ -246,10 +246,10 @@ jobs:
     needs: [fetch_and_generate, generate_pngs]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download all PNGs artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: iconruc-*
           path: iconruc_raw
