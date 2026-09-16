@@ -668,6 +668,8 @@ for filename in all_files_global:
 
         if var_type == "scp":
             embed_source = np.where(embed_source < 0.2, np.nan, embed_source)
+        if var_type == "cape_ml":
+            embed_source = np.where(embed_source < 20, np.nan, embed_source)
 
         embed_data_chunk(out_path, embed_source, GERMANY_CROP_EXTENT_3857, quantum)
 
