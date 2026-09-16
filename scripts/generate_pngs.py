@@ -334,7 +334,7 @@ outside_hull_2d = outside_hull.reshape(xx.shape)
 # volle Zielraster (row0 = Süden, wie bei render_data_merc), daher genügt
 # ein einfacher Index-Crop darauf - keine separate "volle" Rastervariable
 # nötig wie beim ICON-D2-Skript.
-EMBED_DATA_VARS = {"t2m", "wind", "tp", "tp_acc", "ehi", "scp", "srh3km"}
+EMBED_DATA_VARS = {"t2m", "wind", "tp", "tp_acc", "ehi", "scp", "srh3km", "cape_ml"}
 GERMANY_BBOX_LONLAT = [5.5, 15.3, 47.0, 55.3]  # lon_min, lon_max, lat_min, lat_max
 
 _gbx_min, _gby_min = lonlat_to_webmercator(GERMANY_BBOX_LONLAT[0], GERMANY_BBOX_LONLAT[2])
@@ -370,6 +370,7 @@ QUANTUM_STEP = {
     "ehi": 0.05,
     "scp": 0.05,
     "srh3km": 0.5,
+    "cape_ml": 1.0,
 }
 
 NAN_SENTINEL_I16 = -32768
