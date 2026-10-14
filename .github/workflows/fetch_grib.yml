@@ -269,6 +269,12 @@ jobs:
         run: |
           python scripts/generate_metadata.py iconruc/${{ needs.fetch_and_generate.outputs.run }} ${{ needs.fetch_and_generate.outputs.run }} ${{ env.DATE }}
 
+      - name: Rohdateien mit gzip komprimieren
+        run: |
+          find iconruc/${{ needs.fetch_and_generate.outputs.run }} -type f | while read -r f; do
+            gzip -9 -n -c "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          done
+
       - name: Clean old runs on R2 except current
         run: |
           for run_folder in $(aws s3 ls s3://${{ secrets.R2_BUCKET }}/icon-ruc/ --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com | awk '{print $2}' | sed 's#/##'); do
@@ -283,7 +289,8 @@ jobs:
       - name: Upload current run and metadata.json to R2
         run: |
           aws s3 sync ./iconruc/${{ needs.fetch_and_generate.outputs.run }}/ s3://${{ secrets.R2_BUCKET }}/icon-ruc/${{ needs.fetch_and_generate.outputs.run }}/ \
-            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+            --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --content-type application/gzip
 
           aws s3 cp ./iconruc/metadata.json s3://${{ secrets.R2_BUCKET }}/icon-ruc/metadata.json \
             --endpoint-url https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
