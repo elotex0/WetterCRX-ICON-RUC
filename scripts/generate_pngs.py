@@ -61,10 +61,6 @@ COS_LAT0 = np.cos(np.radians(0.5 * (GRID_LAT_MIN + GRID_LAT_MAX)))
 target_points = np.column_stack((lon_tt.ravel() * COS_LAT0, lat_tt.ravel()))
 n_target = target_points.shape[0]
 
-if var_type == "ww":
-    print("native:", np.unique(data[np.isfinite(data)]))
-    print("grid:  ", np.unique(grid_data[np.isfinite(grid_data)]))
-
 
 def encode_uint8(data, enc):
     """float-Array (NaN erlaubt) -> uint8-Array (255 = NoData)."""
@@ -364,6 +360,13 @@ for filename in all_files_global:
         continue
 
     grid_data = to_target_grid(data)          # row0 = Norden, NaN außerhalb der Hülle
+    if var_type == "ww":
+        nat = np.unique(data[np.isfinite(data)])
+        gr = np.unique(grid_data[np.isfinite(grid_data)])
+        print("native:", nat)
+        print("grid:  ", gr)
+        print("nur im Grid:", np.setdiff1d(gr, nat))
+    # --- Ende Debug ---
     q = encode_uint8(grid_data, enc)
 
     outname = f"{var_type}_{valid_time_local:%Y%m%d_%H%M}"
